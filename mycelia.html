@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Mycelia · slime intelligence</title>
+<style>
+  :root{--g:#f3c14b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#07060a;color:#f4e9d2;
+    font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
+  #c{position:fixed;inset:0;display:block;touch-action:none}
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(125% 125% at 50% 45%,transparent 50%,#000 100%)}
+  #ui{position:fixed;top:12px;left:12px;width:266px;max-height:calc(100% - 24px);overflow:auto;
+    background:rgba(18,13,9,.72);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+    border:1px solid rgba(243,193,75,.20);border-radius:14px;padding:9px 12px;
+    box-shadow:0 12px 44px rgba(0,0,0,.55);transition:transform .25s;z-index:4}
+  #ui.hide{transform:translateX(-290px)}
+  #ui::-webkit-scrollbar{width:6px}#ui::-webkit-scrollbar-thumb{background:#3a2c14;border-radius:3px}
+  h1{font-size:13px;letter-spacing:2px;color:var(--g);font-weight:700}
+  .sub{font-size:9px;opacity:.55;margin:2px 0 5px;line-height:1.4}
+  .sub span{cursor:pointer;color:var(--g)}
+  .row{display:flex;justify-content:space-between;align-items:baseline;margin:5px 0 1px;font-size:10px;opacity:.82}
+  .row b{color:#fff;font-weight:600;opacity:.92;font-size:10px}
+  input[type=range]{width:100%;height:4px;-webkit-appearance:none;appearance:none;
+    background:#3a2c14;border-radius:3px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;
+    background:var(--g);cursor:pointer;box-shadow:0 0 9px var(--g)}
+  input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;
+    background:var(--g);cursor:pointer;box-shadow:0 0 9px var(--g)}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}
+  button{font-family:inherit;font-size:10px;color:#fef3da;background:#2a2010;
+    border:1px solid rgba(243,193,75,.24);border-radius:7px;padding:5px 4px;cursor:pointer;transition:.15s}
+  button:hover{background:#3a2c16;border-color:var(--g)}
+  button:active{transform:translateY(1px)}
+  .pri{background:linear-gradient(180deg,#caa33a,#7a5e16);border-color:#ffd86a;color:#1a1305;font-weight:600}
+  .pre{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+  .pre button{flex:1 1 30%;padding:4px 4px;font-size:10px}
+  .mini{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:5px}
+  .mini button{padding:5px 3px;font-size:10px}
+  .act{background:#b8901f;border-color:#ffd86a;color:#1a1305}
+  .seed{display:flex;gap:5px;margin-top:6px;align-items:center;font-size:10px;opacity:.85}
+  .seed input{flex:1;min-width:0;background:#1a130a;border:1px solid rgba(243,193,75,.2);
+    color:#fbe8b8;border-radius:6px;padding:4px 6px;font-family:inherit;font-size:10px}
+  .seed button{padding:4px 8px;font-size:10px}
+  .lbl{font-size:9px;opacity:.5;margin-top:7px;text-transform:uppercase;letter-spacing:1.5px}
+  #mx{display:grid;gap:2px;margin:5px auto 0;max-width:210px;touch-action:none;user-select:none}
+  #mx div{aspect-ratio:1;border-radius:2px;cursor:ns-resize}
+  #tog{position:fixed;top:12px;left:12px;z-index:5;width:36px;height:36px;border-radius:11px;
+    font-size:18px;line-height:1;display:none;background:rgba(18,13,9,.8)}
+  #hud{position:fixed;right:13px;bottom:11px;font-size:11px;opacity:.45;text-align:right;pointer-events:none}
+  #hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);font-size:12.5px;
+    color:var(--g);opacity:.92;pointer-events:none;transition:opacity 1.4s;text-shadow:0 0 14px #000}
+  #about{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;
+    padding:18px;background:rgba(4,3,2,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #about.show{display:flex}
+  #about .card{max-width:432px;max-height:88%;overflow:auto;background:rgba(20,15,10,.97);
+    border:1px solid rgba(243,193,75,.28);border-radius:16px;padding:22px 24px;font-size:13px;
+    line-height:1.5;box-shadow:0 22px 72px rgba(0,0,0,.7)}
+  #about h2{color:var(--g);letter-spacing:3px;font-size:18px;margin-bottom:10px}
+  #about h3{color:#fff;font-size:13px;margin:15px 0 5px;opacity:.95}
+  #about p{opacity:.82;margin:7px 0}
+  #about ul{margin:6px 0 6px 18px;opacity:.82}#about li{margin:4px 0}
+  #about code{background:#1a130a;border:1px solid #3a2c16;border-radius:5px;padding:1px 5px;color:#ffd86a}
+  #about .cr{opacity:.5;font-size:11px;margin-top:16px}
+  #about button{margin-top:14px;width:100%;padding:10px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<button id="tog" title="show panel">&#9776;</button>
+<div id="ui">
+  <h1>MYCELIA</h1>
+  <div class="sub">Blind crawlers + a scent trail &rarr; living networks. Hit <b>Randomize</b> to grow a new culture. <span id="x">[hide]</span> <span id="ab">[about]</span></div>
+  <div id="ctrls"></div>
+  <div class="btns">
+    <button class="pri" id="bRand">&#9889; Randomize</button>
+    <button id="bReset">&#8635; Reseed</button>
+    <button id="bPause">&#10073;&#10073; Pause</button>
+    <button id="bMouse">&#129504; Feed</button>
+    <button id="bAud" style="grid-column:1/3">&#128263; Audio</button>
+  </div>
+  <div class="pre">
+    <button data-p="web" title="Each strain follows its own scent and avoids the others, so the colours weave separate, lacy transport networks side by side.">Web</button>
+    <button data-p="weave" title="Every strain is drawn toward the scent of the next colour in the cycle, so the networks chase and braid through one another.">Weave</button>
+    <button data-p="coral" title="Short senses, slow turns and slow evaporation: trails thicken into dense, branching coral-like growths.">Coral</button>
+    <button data-p="flow" title="Narrow sensing reach far ahead with gentle turns makes the crawlers stream into long, calm rivers of light.">Flow</button>
+    <button data-p="cells" title="Strong self-attraction and strong mutual avoidance break the field into tight membrane-walled cells.">Cells</button>
+    <button data-p="wild" title="Discards the rules and rolls a brand-new random matrix from a fresh seed: a totally unpredictable culture (same as Randomize, key R).">Wild</button>
+  </div>
+  <div class="mini">
+    <button id="bMut" title="Nudges every scent rule by a small random amount, keeping the culture's character but shifting its behaviour (key M).">&#9883; Mutate</button>
+    <button id="bEvo" title="Keeps mutating a little every few seconds, so the colony slowly drifts and morphs on its own. Click again to stop (key E).">&#8734; Evolve</button>
+    <button id="bPal" title="Cycles the colour scheme (spectrum, fire, ice, candy, amber). Changes only the look, not the behaviour (key P).">&#127912; Palette</button>
+  </div>
+  <div class="btns" style="margin-top:6px">
+    <button id="bRng" title="Roll fresh random values for all nine sliders at once. Keeps the current culture's scent rules.">&#127922; Settings</button>
+    <button id="bDef" title="Reset all nine sliders back to their default starting values.">&#8634; Defaults</button>
+    <button id="bSnap" style="grid-column:1/3" title="Save the current frame as a PNG image (just the artwork, no panel). Key S.">&#128247; Save PNG</button>
+  </div>
+  <div class="seed">seed <input id="seedIn" spellcheck="false" title="copy or type a seed, then Load"><button id="bSeed">Load</button></div>
+  <div class="lbl" style="margin-top:9px">keys &middot; space r m e p a n h</div>
+  <div class="lbl">scent matrix &middot; drag cells &updownarrow;</div>
+  <div id="mx"></div>
+</div>
+<div id="about"><div class="card">
+  <h2>MYCELIA</h2>
+  <p>A living <b>slime-mould</b> ecosystem, modelled on <i>Physarum polycephalum</i> &mdash; the brainless
+  organism that famously solves mazes and rebuilds rail maps. Tens of thousands of microscopic
+  <b>crawlers</b>, each one of a few <i>strains</i> (colours), wander a dark field. Each leaves a faint
+  glowing <b>scent</b> wherever it goes, and that scent slowly <b>spreads and evaporates</b>. Every veined
+  network, membrane and pulsing front you see <i>emerges</i> from nothing but that feedback loop.</p>
+  <h3>The rule each crawler obeys</h3>
+  <p>A crawler has no brain and no plan. Every step it simply:</p>
+  <ul>
+    <li><b>sniffs</b> three points ahead &mdash; left, centre, right, at the <i>sensor reach</i> and <i>angle</i>;</li>
+    <li><b>turns</b> toward whichever smells strongest (by <i>turn</i> rate), then steps forward;</li>
+    <li><b>deposits</b> a dab of its own scent where it lands.</li>
+  </ul>
+  <p>What "smells strongest" is decided by the <b>scent matrix</b> below: how much each strain is drawn
+  to &mdash; or repelled by &mdash; every strain's trail (including its own). Following your own scent
+  builds roads; avoiding it spreads you thin. The grid is <b>asymmetric</b>, just like in Primordium, and
+  that imbalance is what turns symmetry into life.</p>
+  <h3>Make it yours</h3>
+  <p>Every culture is generated from a 32-bit <b>seed</b>: copy it to save a colony or paste a friend's,
+  then <b>Load</b>. <b>Mutate</b> nudges the rules; <b>Evolve</b> keeps mutating so the colony drifts on
+  its own. Drag a matrix cell up/down to hand-tune one relationship, and drag the canvas to <b>feed</b>
+  the slime a glowing lure (toggle to <b>erase</b>). The presets are hand-built starting points.</p>
+  <h3>Sound</h3>
+  <p>Toggle <b>Audio</b> (the <code>a</code> key) and the colony <i>conducts</i> a generative ambient
+  piece. The driver is the swarm's <b>restlessness</b> &mdash; how many crawlers are still searching and
+  turning. A confused, exploring culture makes the music busy, high and bright; as it settles into stable
+  veins the crawlers stop turning and the music falls sparse, low and calm. Pentatonic tuning means it
+  never hits a wrong note. All synthesised live with the Web Audio API &mdash; no files, no network.</p>
+  <h3>Keyboard</h3>
+  <p><code>space</code> pause &middot; <code>r</code> randomize &middot; <code>m</code> mutate &middot;
+  <code>e</code> evolve &middot; <code>p</code> palette &middot; <code>a</code> sound &middot;
+  <code>n</code> reseed &middot; <code>h</code> hide panel &middot; <code>i</code> this panel</p>
+  <p class="cr">A single self-contained HTML file &middot; no libraries, no network, no assets.
+  Real-time agent-based slime simulation on a diffusing scent field. A companion to Primordium. Built with Claude.</p>
+  <button id="aClose">close</button>
+</div></div>
+<div id="hud"></div>
+<div id="hint">drag on the canvas to feed the slime</div>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const cv=$("c"),ctx=cv.getContext("2d",{alpha:false});
+let W,H,fw,fh;                 // screen size / scent-field size
+let field=[],tmp,blur,off,octx,imgData;
+
+// ---- state ----
+const P={n:14000,k:3,sa:0.40,sd:9,ts:0.55,speed:1.0,dep:5,decay:0.90,diffuse:1.0,gain:0.06,paused:0};
+const DEF=Object.assign({},P);
+const mat=new Float32Array(16);          // up to 4x4 scent matrix, stride = P.k
+let cr=[],cg=[],cb=[],cols_=[];          // per-strain colour (floats + css)
+const mouse={x:0,y:0,down:false,r:150,mode:1};   // mode +1 feed, -1 erase
+const trail=[];
+function pushTrail(x,y){const t=trail;if(t.length){const p=t[t.length-1];
+  if((x-p.x)*(x-p.x)+(y-p.y)*(y-p.y)<36)return;}t.push({x,y,l:1});if(t.length>240)t.shift();}
+
+// ---- agents ----
+let n=0,ax,ay,ah,asp;
+function spawn(){
+  n=P.n;
+  ax=new Float32Array(n);ay=new Float32Array(n);ah=new Float32Array(n);asp=new Uint8Array(n);
+  for(let i=0;i<n;i++){ax[i]=Math.random()*fw;ay[i]=Math.random()*fh;ah[i]=Math.random()*6.2832;asp[i]=(Math.random()*P.k)|0;}
+  clearField();
+}
+function clearField(){for(let j=0;j<P.k;j++)field[j].fill(0);}
+
+// ---- scent field buffers ----
+function allocField(){
+  field=[];for(let j=0;j<P.k;j++)field.push(new Float32Array(fw*fh));
+  tmp=new Float32Array(fw*fh);blur=new Float32Array(fw*fh);
+  off=document.createElement("canvas");off.width=fw;off.height=fh;octx=off.getContext("2d");
+  imgData=octx.createImageData(fw,fh);
+}
+function resize(){
+  W=cv.width=innerWidth;H=cv.height=innerHeight;
+  const scale=Math.min(1,340/Math.max(W,H));
+  fw=Math.max(16,Math.round(W*scale));fh=Math.max(16,Math.round(H*scale));
+  allocField();spawn();
+}
+addEventListener("resize",resize);
+
+// ---- palettes ----
+function hsl2rgb(h,s,l){h/=360;const a=s*Math.min(l,1-l);
+  const f=k=>{const x=(k+h*12)%12;return l-a*Math.max(-1,Math.min(x-3,Math.min(9-x,1)));};
+  return[f(0),f(8),f(4)];}
+const pals=[
+  (i,k)=>hsl2rgb(i/k*360,0.92,0.56),                      // spectrum
+  (i,k)=>hsl2rgb(i/k*60,1,0.50+0.12*i/k),                 // fire
+  (i,k)=>hsl2rgb(170+i/k*120,0.85,0.60),                  // ice
+  (i,k)=>hsl2rgb(i/k*330,0.80,0.70),                      // candy
+  (i,k)=>hsl2rgb(45,0.72,0.40+0.42*(i/Math.max(1,k-1)))   // amber (mono)
+];
+let pal=0;
+function buildColors(){
+  cr=[];cg=[];cb=[];cols_=[];
+  for(let i=0;i<P.k;i++){const c=pals[pal](i,P.k);
+    cr.push(c[0]);cg.push(c[1]);cb.push(c[2]);
+    cols_.push("rgb("+(c[0]*255|0)+","+(c[1]*255|0)+","+(c[2]*255|0)+")");}
+  buildMx();
+}
+
+// ---- reproducible cultures from a 32-bit seed ----
+let seed=0;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function showSeed(){$("seedIn").value=seed.toString(36);}
+function genSeed(s){seed=s>>>0;const r=mulberry32(seed||1);
+  for(let i=0;i<P.k;i++)for(let j=0;j<P.k;j++){
+    let v=r()*2-1;if(i===j)v=0.35+0.6*r();   // bias self-attraction so networks form
+    mat[i*P.k+j]=v;}
+  buildMx();showSeed();}
+function randMat(){genSeed((Math.random()*4294967296)>>>0);}
+function mutate(amt){for(let i=0,L=P.k*P.k;i<L;i++){let v=mat[i]+(Math.random()*2-1)*amt;
+  mat[i]=v<-1?-1:v>1?1:v;}buildMx();$("seedIn").value="custom";}
+
+// ---- scent matrix editor ----
+const mx=$("mx");
+function colorCell(d){
+  const v=mat[(+d.dataset.i)*P.k+(+d.dataset.j)],a=(0.1+0.9*Math.abs(v)).toFixed(2);
+  d.style.background=v>=0?"rgba(90,220,150,"+a+")":"rgba(244,90,80,"+a+")";
+}
+function buildMx(){
+  mx.style.gridTemplateColumns="repeat("+P.k+",1fr)";
+  mx.innerHTML="";
+  for(let i=0;i<P.k;i++)for(let j=0;j<P.k;j++){
+    const d=document.createElement("div");
+    d.dataset.i=i;d.dataset.j=j;
+    d.style.borderLeft="2px solid "+(cols_[i]||"#888");
+    d.style.borderTop="2px solid "+(cols_[j]||"#888");
+    colorCell(d);mx.appendChild(d);
+  }
+}
+let drag=null;
+mx.addEventListener("pointerdown",e=>{
+  const d=e.target.closest("div");if(!d||d===mx)return;
+  drag={d,i:+d.dataset.i,j:+d.dataset.j,y:e.clientY,v:mat[(+d.dataset.i)*P.k+(+d.dataset.j)]};
+  mx.setPointerCapture(e.pointerId);e.preventDefault();
+});
+mx.addEventListener("pointermove",e=>{
+  if(!drag)return;
+  let v=drag.v-(e.clientY-drag.y)/120;v=v<-1?-1:v>1?1:v;
+  mat[drag.i*P.k+drag.j]=v;colorCell(drag.d);
+});
+addEventListener("pointerup",()=>{drag=null;mouse.down=false;});
+
+// ---- sliders (generated) ----
+const defs=[
+  {k:"n",     t:"agents",       mn:1000,mx:60000,st:500,  g:()=>P.n,      s:v=>{P.n=+v;spawn();},      f:v=>v|0},
+  {k:"k",     t:"strains",      mn:1,   mx:4,    st:1,    g:()=>P.k,      s:v=>{P.k=+v;onK();},        f:v=>v|0},
+  {k:"sa",    t:"sensor angle", mn:0.1, mx:1.4,  st:0.05, g:()=>P.sa,     s:v=>{P.sa=+v;},             f:v=>((+v*57.3)|0)+"°"},
+  {k:"sd",    t:"sensor reach", mn:2,   mx:30,   st:1,    g:()=>P.sd,     s:v=>{P.sd=+v;},             f:v=>v|0},
+  {k:"ts",    t:"turn",         mn:0.05,mx:1.2,  st:0.05, g:()=>P.ts,     s:v=>{P.ts=+v;},             f:v=>(+v).toFixed(2)},
+  {k:"speed", t:"speed",        mn:0.3, mx:3,    st:0.1,  g:()=>P.speed,  s:v=>{P.speed=+v;},          f:v=>(+v).toFixed(1)},
+  {k:"decay", t:"evaporate",    mn:0.80,mx:0.99, st:0.005,g:()=>P.decay,  s:v=>{P.decay=+v;},          f:v=>(+v).toFixed(3)},
+  {k:"diffuse",t:"diffuse",     mn:0,   mx:1,    st:0.05, g:()=>P.diffuse,s:v=>{P.diffuse=+v;},        f:v=>(+v).toFixed(2)},
+  {k:"gain",  t:"glow",         mn:0.01,mx:0.3,  st:0.01, g:()=>P.gain,   s:v=>{P.gain=+v;},           f:v=>(+v).toFixed(2)}
+];
+const rngs={},C=$("ctrls");
+defs.forEach(d=>{
+  const lab=document.createElement("div");lab.className="row";
+  const nm=document.createElement("span");nm.textContent=d.t;
+  const val=document.createElement("b");val.textContent=d.f(d.g());
+  const inp=document.createElement("input");inp.type="range";inp.min=d.mn;inp.max=d.mx;inp.step=d.st;inp.value=d.g();
+  inp.addEventListener("input",()=>{d.s(inp.value);val.textContent=d.f(d.g());});
+  lab.appendChild(nm);lab.appendChild(val);C.appendChild(lab);C.appendChild(inp);
+  rngs[d.k]={inp,val,d};
+});
+function applySlider(d,v){d.s(""+v);const r=rngs[d.k];r.inp.value=v;r.val.textContent=d.f(d.g());}
+function byk(k){return rngs[k].d;}
+function randSettings(){defs.forEach(d=>applySlider(d,Math.round((d.mn+Math.random()*(d.mx-d.mn))/d.st)*d.st));}
+function resetSettings(){defs.forEach(d=>applySlider(d,DEF[d.k]));}
+function onK(){buildColors();genSeed(seed);allocField();spawn();}
+
+// ---- presets ----
+function preset(p){
+  if(p==="wild"){randMat();return;}
+  const k=P.k;
+  for(let i=0;i<k;i++)for(let j=0;j<k;j++){
+    let v=0;
+    if(p==="web")      v=i===j?1:-0.2;
+    else if(p==="weave")v=i===j?0.7:(j===(i+1)%k?0.9:-0.4);
+    else if(p==="coral")v=i===j?1:0.15;
+    else if(p==="flow") v=i===j?0.85:-0.1;
+    else if(p==="cells")v=i===j?1:-0.7;
+    mat[i*k+j]=v;
+  }
+  buildMx();$("seedIn").value="preset:"+p;
+  if(p==="coral"){applySlider(byk("sd"),5);applySlider(byk("diffuse"),0.55);applySlider(byk("decay"),0.965);applySlider(byk("ts"),0.75);applySlider(byk("speed"),0.8);}
+  else if(p==="flow"){applySlider(byk("sa"),0.25);applySlider(byk("sd"),18);applySlider(byk("ts"),0.25);applySlider(byk("diffuse"),1);applySlider(byk("decay"),0.9);}
+  else if(p==="web"){applySlider(byk("sd"),9);applySlider(byk("sa"),0.5);applySlider(byk("diffuse"),1);applySlider(byk("decay"),0.9);applySlider(byk("ts"),0.55);}
+  else if(p==="cells"){applySlider(byk("sd"),7);applySlider(byk("sa"),0.55);applySlider(byk("decay"),0.92);}
+  else if(p==="weave"){applySlider(byk("sd"),11);applySlider(byk("sa"),0.4);applySlider(byk("ts"),0.5);}
+}
+
+// ---- simulation ----
+function sample(x,y,mrow,K){
+  let ix=Math.floor(x),iy=Math.floor(y);
+  if(ix<0)ix+=fw;else if(ix>=fw)ix-=fw;
+  if(iy<0)iy+=fh;else if(iy>=fh)iy-=fh;
+  const idx=iy*fw+ix;let v=0;
+  for(let j=0;j<K;j++)v+=field[j][idx]*mat[mrow+j];
+  return v;
+}
+let agit=0;
+function step(){
+  const sa=P.sa,sd=P.sd,ts=P.ts,sp=P.speed,dep=P.dep,K=P.k,jit=0.12;
+  let turns=0;
+  for(let i=0;i<n;i++){
+    const s=asp[i],mrow=s*K,h=ah[i],x=ax[i],y=ay[i];
+    const F=sample(x+Math.cos(h)*sd,    y+Math.sin(h)*sd,    mrow,K);
+    const L=sample(x+Math.cos(h-sa)*sd, y+Math.sin(h-sa)*sd, mrow,K);
+    const R=sample(x+Math.cos(h+sa)*sd, y+Math.sin(h+sa)*sd, mrow,K);
+    let nh=h;
+    if(F>=L&&F>=R){}
+    else if(F<L&&F<R){nh+=(Math.random()<0.5?-ts:ts);turns++;}
+    else if(L>R){nh-=ts;turns++;}
+    else if(R>L){nh+=ts;turns++;}
+    nh+=(Math.random()-0.5)*jit;
+    let nx=x+Math.cos(nh)*sp,ny=y+Math.sin(nh)*sp;
+    if(nx<0)nx+=fw;else if(nx>=fw)nx-=fw;
+    if(ny<0)ny+=fh;else if(ny>=fh)ny-=fh;
+    ax[i]=nx;ay[i]=ny;ah[i]=nh;
+    field[s][(ny|0)*fw+(nx|0)]+=dep;
+  }
+  agit=n?turns/n:0;
+}
+function diffuse(){
+  const dec=P.decay,dif=P.diffuse,od=1-dif,T=0.3333333;
+  for(let c=0;c<P.k;c++){
+    const f=field[c];
+    for(let y=0;y<fh;y++){const row=y*fw;
+      for(let x=0;x<fw;x++){const l=x===0?fw-1:x-1,r=x===fw-1?0:x+1;tmp[row+x]=(f[row+l]+f[row+x]+f[row+r])*T;}}
+    for(let y=0;y<fh;y++){const up=(y===0?fh-1:y-1)*fw,dn=(y===fh-1?0:y+1)*fw,row=y*fw;
+      for(let x=0;x<fw;x++){const bv=(tmp[up+x]+tmp[row+x]+tmp[dn+x])*T;f[row+x]=(f[row+x]*od+bv*dif)*dec;}}
+  }
+}
+function applyMouse(){
+  if(!mouse.down)return;
+  const sx=fw/W,fx=mouse.x*sx,fy=mouse.y*(fh/H),rad=Math.max(1,mouse.r*sx);
+  const x0=Math.max(0,(fx-rad)|0),x1=Math.min(fw-1,(fx+rad)|0);
+  const y0=Math.max(0,(fy-rad)|0),y1=Math.min(fh-1,(fy+rad)|0);
+  const r2=rad*rad,amt=P.dep*6,K=P.k;
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+    const dx=x-fx,dy=y-fy,d2=dx*dx+dy*dy;if(d2>r2)continue;
+    const w=1-Math.sqrt(d2)/rad,idx=y*fw+x;
+    if(mouse.mode>0){for(let j=0;j<K;j++)field[j][idx]+=amt*w;}
+    else{const ff=1-w;for(let j=0;j<K;j++)field[j][idx]*=ff;}
+  }
+}
+
+// ---- render ----
+function draw(){
+  const data=imgData.data,K=P.k,gain=P.gain,tot=fw*fh;
+  for(let p=0;p<tot;p++){
+    let r=0,g=0,b=0;
+    for(let j=0;j<K;j++){const v=field[j][p];if(v>0){r+=cr[j]*v;g+=cg[j]*v;b+=cb[j]*v;}}
+    const o=p<<2;
+    data[o]  =255*(1-Math.exp(-r*gain));
+    data[o+1]=255*(1-Math.exp(-g*gain));
+    data[o+2]=255*(1-Math.exp(-b*gain));
+    data[o+3]=255;
+  }
+  octx.putImageData(imgData,0,0);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
+  ctx.drawImage(off,0,0,fw,fh,0,0,W,H);
+  const TAU=6.2832,tc=mouse.mode>0?"255,210,120":"120,200,255";
+  for(let i=trail.length-1;i>=0;i--){const q=trail[i];q.l-=0.012;
+    if(q.l<=0){trail.splice(i,1);continue;}
+    ctx.fillStyle="rgba("+tc+","+(q.l*0.5).toFixed(3)+")";
+    ctx.beginPath();ctx.arc(q.x,q.y,5+16*q.l,0,TAU);ctx.fill();}
+}
+
+// ---- audio: the colony conducts a generative ambient piece ----
+let actx=null,master,dFilt,dGain,send,notes=[],eSm=0,ePk=1,audioOn=0,lastNote=0,noteGap=1;
+function audioInit(){
+  actx=new (window.AudioContext||window.webkitAudioContext)();
+  master=actx.createGain();master.gain.value=0;master.connect(actx.destination);
+  const dl=actx.createDelay(1),fb=actx.createGain(),dlp=actx.createBiquadFilter();
+  dl.delayTime.value=0.45;fb.gain.value=0.42;dlp.type="lowpass";dlp.frequency.value=2000;
+  send=actx.createGain();send.gain.value=0.6;
+  send.connect(dl);dl.connect(dlp);dlp.connect(fb);fb.connect(dl);dl.connect(master);
+  dFilt=actx.createBiquadFilter();dFilt.type="lowpass";dFilt.frequency.value=400;dFilt.Q.value=3;
+  dGain=actx.createGain();dGain.gain.value=0.06;
+  dFilt.connect(dGain);dGain.connect(master);dGain.connect(send);
+  [55,82.5,110].forEach((f,i)=>{const o=actx.createOscillator();
+    o.type=i?"sawtooth":"triangle";o.frequency.value=f;o.detune.value=(i-1)*5;o.connect(dFilt);o.start();});
+  const lfo=actx.createOscillator(),lg=actx.createGain();
+  lfo.frequency.value=0.05;lg.gain.value=260;lfo.connect(lg);lg.connect(dFilt.frequency);lfo.start();
+  for(let o=0;o<4;o++)for(const s of [0,3,5,7,10])notes.push(110*Math.pow(2,(s+12*o)/12)); // A minor pentatonic
+}
+function note(L,now){
+  const f=notes[(Math.random()*Math.max(3,(L*notes.length)|0))|0];
+  const o=actx.createOscillator(),g=actx.createGain(),rel=2.5+Math.random()*2.5;
+  o.type="sine";o.frequency.value=f;o.connect(g);g.connect(master);g.connect(send);
+  g.gain.linearRampToValueAtTime(0.11,now+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0008,now+0.03+rel);
+  o.start(now);o.stop(now+rel+0.2);
+}
+function audioToggle(){
+  if(!actx)audioInit();
+  if(actx.state==="suspended")actx.resume();
+  audioOn^=1;
+  master.gain.setTargetAtTime(audioOn?0.5:0,actx.currentTime,0.4);
+  const b=$("bAud");b.classList.toggle("act",!!audioOn);b.innerHTML=audioOn?"&#128266; Audio":"&#128263; Audio";
+}
+
+// ---- loop ----
+const hud=$("hud");let last=performance.now(),fps=60,evo=0,evc=0;
+function frame(t){
+  requestAnimationFrame(frame);
+  const ft=t-last;last=t;if(ft>0)fps+=(1000/ft-fps)*0.08;
+  if(!P.paused){applyMouse();step();diffuse();if(evo&&++evc>70){evc=0;mutate(0.06);}}
+  draw();
+  if(audioOn&&actx){
+    eSm+=(agit-eSm)*0.1;ePk=Math.max(ePk*0.995,eSm,1e-6);
+    const L=Math.min(1,eSm/ePk),now=actx.currentTime;
+    dFilt.frequency.setTargetAtTime(240+L*L*2400,now,0.25);
+    dGain.gain.setTargetAtTime(P.paused?0:0.045+0.05*L,now,0.3);
+    if(!P.paused&&now-lastNote>noteGap){lastNote=now;note(L,now);noteGap=(2.3-1.8*L)*(0.6+0.8*Math.random());}
+  }
+  hud.textContent=(fps|0)+" fps · "+n+" agents · "+P.k+" strains";
+}
+
+// ---- controls wiring ----
+$("bRand").onclick=()=>randMat();
+$("bReset").onclick=()=>spawn();
+$("bPause").onclick=function(){P.paused^=1;this.innerHTML=P.paused?"&#9654; Play":"&#10073;&#10073; Pause";};
+$("bMouse").onclick=function(){mouse.mode*=-1;this.innerHTML=mouse.mode>0?"&#129504; Feed":"&#129529; Erase";};
+document.querySelectorAll(".pre button").forEach(b=>b.onclick=()=>preset(b.dataset.p));
+$("bMut").onclick=()=>mutate(0.22);
+$("bEvo").onclick=function(){evo^=1;this.classList.toggle("act",!!evo);};
+$("bPal").onclick=()=>{pal=(pal+1)%pals.length;buildColors();};
+$("bAud").onclick=audioToggle;
+$("bRng").onclick=randSettings;
+$("bDef").onclick=resetSettings;
+function snap(){const a=document.createElement("a"),
+  t=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,19).replace(/[-:]/g,"").replace("T","-");
+  a.download="mycelia_"+($("seedIn").value||"shot").replace(/[^\w.-]/g,"_")+"_"+t+".png";a.href=cv.toDataURL("image/png");a.click();}
+$("bSnap").onclick=snap;
+$("bSeed").onclick=()=>{const v=parseInt($("seedIn").value.trim(),36);if(!isNaN(v))genSeed(v);};
+$("seedIn").addEventListener("keydown",e=>{if(e.key==="Enter")$("bSeed").click();});
+addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT")return;
+  const c=e.key.toLowerCase();
+  if(c===" "){$("bPause").click();e.preventDefault();}
+  else if(c==="r")randMat();else if(c==="m")mutate(0.22);
+  else if(c==="e")$("bEvo").click();else if(c==="p")$("bPal").click();
+  else if(c==="n")spawn();else if(c==="a")audioToggle();else if(c==="s")snap();
+  else if(c==="i")$("about").classList.toggle("show");
+  else if(c==="h")($("ui").classList.contains("hide")?$("tog"):$("x")).click();
+});
+$("ab").onclick=()=>$("about").classList.add("show");
+$("aClose").onclick=()=>$("about").classList.remove("show");
+$("about").onclick=e=>{if(e.target===$("about"))$("about").classList.remove("show");};
+function hideUI(){$("ui").classList.add("hide");$("tog").style.display="block";}
+let hideT;function armHide(){clearTimeout(hideT);hideT=setTimeout(hideUI,15000);}
+["pointermove","pointerdown","input"].forEach(e=>$("ui").addEventListener(e,armHide));armHide();
+$("x").onclick=hideUI;
+$("tog").onclick=()=>{$("ui").classList.remove("hide");$("tog").style.display="none";armHide();};
+cv.addEventListener("pointerdown",e=>{mouse.down=true;mouse.x=e.clientX;mouse.y=e.clientY;pushTrail(e.clientX,e.clientY);$("hint").style.opacity=0;});
+cv.addEventListener("pointermove",e=>{mouse.x=e.clientX;mouse.y=e.clientY;if(mouse.down)pushTrail(e.clientX,e.clientY);});
+
+// ---- boot ----
+resize();buildColors();randMat();
+setTimeout(()=>$("hint").style.opacity=0,6000);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
