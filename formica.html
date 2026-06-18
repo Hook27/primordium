@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Formica · ant colony</title>
+<style>
+  :root{--g:#e2613a}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#0a0806;color:#f1e3d2;
+    font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
+  #c{position:fixed;inset:0;display:block;touch-action:none}
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(125% 125% at 50% 45%,transparent 52%,#000 100%)}
+  #ui{position:fixed;top:12px;left:12px;width:266px;max-height:calc(100% - 24px);overflow:auto;
+    background:rgba(18,11,7,.74);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+    border:1px solid rgba(226,97,58,.22);border-radius:14px;padding:9px 12px;
+    box-shadow:0 12px 44px rgba(0,0,0,.55);transition:transform .25s;z-index:4}
+  #ui.hide{transform:translateX(-290px)}
+  #ui::-webkit-scrollbar{width:6px}#ui::-webkit-scrollbar-thumb{background:#3a2414;border-radius:3px}
+  h1{font-size:13px;letter-spacing:2px;color:var(--g);font-weight:700}
+  .sub{font-size:9px;opacity:.55;margin:2px 0 5px;line-height:1.4}
+  .sub span{cursor:pointer;color:var(--g)}
+  .row{display:flex;justify-content:space-between;align-items:baseline;margin:5px 0 1px;font-size:10px;opacity:.82}
+  .row b{color:#fff;font-weight:600;opacity:.92;font-size:10px}
+  input[type=range]{width:100%;height:4px;-webkit-appearance:none;appearance:none;
+    background:#3a2414;border-radius:3px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;
+    background:var(--g);cursor:pointer;box-shadow:0 0 9px var(--g)}
+  input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;
+    background:var(--g);cursor:pointer;box-shadow:0 0 9px var(--g)}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}
+  button{font-family:inherit;font-size:10px;color:#fde4d2;background:#2a1a0f;
+    border:1px solid rgba(226,97,58,.26);border-radius:7px;padding:5px 4px;cursor:pointer;transition:.15s}
+  button:hover{background:#3a2414;border-color:var(--g)}
+  button:active{transform:translateY(1px)}
+  .pri{background:linear-gradient(180deg,#c8542f,#7a3217);border-color:#ff8a5a;color:#1a0d05;font-weight:600}
+  .pre{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+  .pre button{flex:1 1 30%;padding:4px 4px;font-size:10px}
+  .mini{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:5px}
+  .mini button{padding:5px 3px;font-size:10px}
+  .act{background:#bb4d28;border-color:#ff8a5a;color:#1a0d05}
+  .seed{display:flex;gap:5px;margin-top:6px;align-items:center;font-size:10px;opacity:.85}
+  .seed input{flex:1;min-width:0;background:#1a100a;border:1px solid rgba(226,97,58,.22);
+    color:#fbd9c0;border-radius:6px;padding:4px 6px;font-family:inherit;font-size:10px}
+  .seed button{padding:4px 8px;font-size:10px}
+  .lbl{font-size:9px;opacity:.5;margin-top:7px;text-transform:uppercase;letter-spacing:1.5px}
+  #lg{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:5px;font-size:9.5px;opacity:.8}
+  #lg span{display:flex;align-items:center;gap:4px}
+  #lg i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  #stat{font-size:10px;margin-top:6px;color:#ffd0b0;opacity:.9;line-height:1.5}
+  #stat b{color:#fff}
+  #tog{position:fixed;top:12px;left:12px;z-index:5;width:36px;height:36px;border-radius:11px;
+    font-size:18px;line-height:1;display:none;background:rgba(18,11,7,.8)}
+  #hud{position:fixed;right:13px;bottom:11px;font-size:11px;opacity:.45;text-align:right;pointer-events:none}
+  #hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);font-size:12.5px;
+    color:var(--g);opacity:.92;pointer-events:none;transition:opacity 1.4s;text-shadow:0 0 14px #000}
+  #about{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;
+    padding:18px;background:rgba(4,3,2,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #about.show{display:flex}
+  #about .card{max-width:432px;max-height:88%;overflow:auto;background:rgba(20,13,9,.97);
+    border:1px solid rgba(226,97,58,.3);border-radius:16px;padding:22px 24px;font-size:13px;
+    line-height:1.5;box-shadow:0 22px 72px rgba(0,0,0,.7)}
+  #about h2{color:var(--g);letter-spacing:3px;font-size:18px;margin-bottom:10px}
+  #about h3{color:#fff;font-size:13px;margin:15px 0 5px;opacity:.95}
+  #about p{opacity:.82;margin:7px 0}
+  #about ul{margin:6px 0 6px 18px;opacity:.82}#about li{margin:4px 0}
+  #about code{background:#1a100a;border:1px solid #3a2414;border-radius:5px;padding:1px 5px;color:#ffb088}
+  #about .cr{opacity:.5;font-size:11px;margin-top:16px}
+  #about button{margin-top:14px;width:100%;padding:10px}
+  #home{position:fixed;top:12px;right:12px;z-index:6;font-family:inherit;font-size:11px;font-weight:600;
+    letter-spacing:1.5px;text-decoration:none;color:var(--g);opacity:.55;
+    background:rgba(8,9,14,.6);border:1px solid rgba(255,255,255,.14);
+    border-radius:9px;padding:5px 10px;transition:opacity .15s,background .15s}
+  #home:hover{opacity:1;background:rgba(8,9,14,.85)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<a id="home" href="index.html" title="back to the collection">&lsaquo; Primordia</a>
+<button id="tog" title="show panel">&#9776;</button>
+<div id="ui">
+  <h1>FORMICA</h1>
+  <div class="sub">No leaders, no map &mdash; just two scents. A foraging colony finds the shortest road on its own. <span id="x">[hide]</span> <span id="ab">[about]</span></div>
+  <div id="ctrls"></div>
+  <div class="btns">
+    <button class="pri" id="bRand">&#9889; Randomize</button>
+    <button id="bReset">&#8635; Reseed</button>
+    <button id="bPause">&#10073;&#10073; Pause</button>
+    <button id="bMouse">&#127830; Feed</button>
+    <button id="bAud" style="grid-column:1/3">&#128263; Audio</button>
+  </div>
+  <div class="pre">
+    <button data-p="forage" title="A balanced colony: steady scouting, clear trails. The classic starting point.">Forage</button>
+    <button data-p="frenzy" title="Fast, twitchy ants with lots of random wander &mdash; chaotic scouting, blurry trails.">Frenzy</button>
+    <button data-p="highway" title="Calm ants, strong long-lasting scent and little wander: trails sharpen into tight highways.">Highway</button>
+    <button data-p="scatter" title="Fast-evaporating scent and high wander: ants explore widely and trails barely form.">Scatter</button>
+    <button data-p="swarm" title="A huge colony &mdash; thousands of ants flooding the floor.">Swarm</button>
+    <button data-p="wild" title="Rolls a brand-new random map: fresh nest and food piles from a new seed (same as Randomize, key R).">Wild</button>
+  </div>
+  <div class="mini">
+    <button id="bMut" title="Scatters a fresh ring of food piles around the nest (key M).">&#127812; Scatter</button>
+    <button id="bEvo" title="Keeps dropping new food now and then so the colony never starves. Click again to stop (key E).">&#8734; Auto-feed</button>
+    <button id="bPal" title="Cycles the colour scheme (earth, ember, ice, neon, mono). Look only, not behaviour (key P).">&#127912; Palette</button>
+  </div>
+  <div class="btns" style="margin-top:6px">
+    <button id="bRng" title="Roll fresh random values for all eight sliders at once. Keeps the current map.">&#127922; Settings</button>
+    <button id="bDef" title="Reset all eight sliders back to their default starting values.">&#8634; Defaults</button>
+    <button id="bSnap" style="grid-column:1/3" title="Save the current frame as a PNG image (just the artwork, no panel). Key S.">&#128247; Save PNG</button>
+  </div>
+  <div class="seed">seed <input id="seedIn" spellcheck="false" title="copy or type a seed, then Load"><button id="bSeed">Load</button></div>
+  <div class="lbl" style="margin-top:9px">keys &middot; space r m e p a n h</div>
+  <div id="lg"></div>
+  <div id="stat"></div>
+</div>
+<div id="about"><div class="card">
+  <h2>FORMICA</h2>
+  <p>A foraging <b>ant colony</b>, modelled on the real thing. Hundreds or thousands of ants leave the
+  <b>nest</b>, search the floor for <b>food</b>, and haul it back &mdash; yet no ant can see the big
+  picture, knows where the food is, or is told what to do. Out of nothing but local rules and evaporating
+  scent, the colony discovers and reinforces the <i>shortest paths</i> between nest and food. This is
+  <b>ant-colony optimisation</b>, the algorithm, running live.</p>
+  <h3>Two scents</h3>
+  <p>Every ant lays one of two pheromone trails and follows the other:</p>
+  <ul>
+    <li><b>Searching</b> ants drop a <i>"way home"</i> scent (strongest near the nest, fading as they
+      roam) and steer up the <i>"to food"</i> scent left by successful foragers.</li>
+    <li><b>Carrying</b> ants drop a <i>"to food"</i> scent (strongest right after a pickup) and steer up
+      the <i>"way home"</i> scent back to the nest.</li>
+  </ul>
+  <p>Each scent <b>evaporates and diffuses</b> every tick, so dead ends fade while busy routes get
+  re-painted and sharpen into roads. Because a scent dab weakens the longer an ant walks since its last
+  reward, the two scents form <b>gradients</b> that point exactly where each kind of ant needs to go.</p>
+  <h3>Make it yours</h3>
+  <p>Every map &mdash; nest position and food piles &mdash; is generated from a 32-bit <b>seed</b>: copy
+  it to save a layout or paste a friend's, then <b>Load</b>. Drag on the floor to <b>feed</b> the colony a
+  fresh pile (toggle the button to <b>move the nest</b> instead). <b>Scatter</b> rings the nest with food;
+  <b>Auto-feed</b> keeps it fed. The presets tune the ants' senses and the scent's persistence.</p>
+  <h3>Sound</h3>
+  <p>Toggle <b>Audio</b> (the <code>a</code> key) and the colony <i>conducts</i> a generative ambient
+  piece, driven by how much food is in transit. A productive colony with full highways makes the music
+  busy and bright; a stalled, searching one makes it sparse and low. Pentatonic tuning means it never hits
+  a wrong note. All synthesised live with the Web Audio API &mdash; no files, no network.</p>
+  <h3>Keyboard</h3>
+  <p><code>space</code> pause &middot; <code>r</code> randomize &middot; <code>m</code> scatter food &middot;
+  <code>e</code> auto-feed &middot; <code>p</code> palette &middot; <code>a</code> sound &middot;
+  <code>n</code> reseed &middot; <code>h</code> hide panel &middot; <code>i</code> this panel</p>
+  <p class="cr">A single self-contained HTML file &middot; no libraries, no network, no assets.
+  Real-time agent simulation on two diffusing scent fields. A companion to Primordium &amp; Mycelia. Built with Claude.</p>
+  <button id="aClose">close</button>
+</div></div>
+<div id="hud"></div>
+<div id="hint">drag on the floor to drop food</div>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const cv=$("c"),ctx=cv.getContext("2d",{alpha:false});
+const PI=Math.PI,TAU=PI*2;
+let W,H,fw,fh;
+let homeF,foodF,tmp,off,octx,imgData;
+
+// ---- state ----
+const P={n:2500,sa:0.50,sd:9,ts:0.45,speed:1.0,wander:0.35,decay:0.95,diffuse:0.5,gain:0.12,dep:4,paused:0};
+const DEF=Object.assign({},P);
+let nest={x:0,y:0},piles=[];
+let collected=0,carryN=0,agit=0;
+const mouse={x:0,y:0,down:false,r:120,mode:1};   // 1 feed, 0 move nest
+const trail=[];
+function pushTrail(x,y){const t=trail;if(t.length){const p=t[t.length-1];
+  if((x-p.x)*(x-p.x)+(y-p.y)*(y-p.y)<36)return;}t.push({x,y,l:1});if(t.length>240)t.shift();}
+
+// ---- ants ----
+let n=0,ax,ay,ah,amode,ares,aspd,asr;
+function spawn(){
+  n=P.n;
+  ax=new Float32Array(n);ay=new Float32Array(n);ah=new Float32Array(n);
+  amode=new Uint8Array(n);ares=new Float32Array(n);aspd=new Float32Array(n);asr=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    ax[i]=nest.x+(Math.random()-0.5)*6;ay[i]=nest.y+(Math.random()-0.5)*6;
+    ah[i]=Math.random()*TAU;amode[i]=0;ares[i]=1;
+    aspd[i]=0.7+Math.random()*0.6;asr[i]=0.7+Math.random()*0.7;   // every ant is a little different
+  }
+  collected=0;clearFields();
+}
+function clearFields(){homeF.fill(0);foodF.fill(0);}
+
+function allocField(){
+  homeF=new Float32Array(fw*fh);foodF=new Float32Array(fw*fh);tmp=new Float32Array(fw*fh);
+  off=document.createElement("canvas");off.width=fw;off.height=fh;octx=off.getContext("2d");
+  imgData=octx.createImageData(fw,fh);
+}
+let booted=false;
+function resize(){
+  W=cv.width=innerWidth;H=cv.height=innerHeight;
+  const scale=Math.min(1,330/Math.max(W,H));
+  fw=Math.max(16,Math.round(W*scale));fh=Math.max(16,Math.round(H*scale));
+  allocField();
+  genWorld(booted?seed:(Math.random()*4294967296)>>>0);
+  spawn();booted=true;
+}
+addEventListener("resize",resize);
+
+// ---- reproducible maps from a 32-bit seed ----
+let seed=0;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function showSeed(){$("seedIn").value=seed.toString(36);}
+function genWorld(s){
+  seed=s>>>0;const r=mulberry32(seed||1);
+  nest={x:fw*(0.35+0.30*r()),y:fh*(0.35+0.30*r())};
+  piles=[];const cnt=5+(r()*5|0),minD=(fw*0.18)*(fw*0.18);
+  for(let i=0;i<cnt;i++){let px,py,tries=0;
+    do{px=fw*(0.07+0.86*r());py=fh*(0.07+0.86*r());tries++;}
+    while(((px-nest.x)**2+(py-nest.y)**2)<minD&&tries<8);
+    piles.push({x:px,y:py,a:200+(r()*320|0)});
+  }
+  showSeed();
+}
+function randWorld(){genWorld((Math.random()*4294967296)>>>0);spawn();}
+
+// ---- palettes (all colours as floats 0..1) ----
+const palettes=[
+  {hC:[0.25,0.45,1.0],fC:[0.60,1.0,0.30],ant:[0.85,0.75,0.55],carry:[0.92,1.0,0.45],nest:[0.89,0.36,0.22],food:[0.6,0.92,0.23]}, // earth
+  {hC:[1.0,0.45,0.12],fC:[1.0,0.82,0.25],ant:[0.95,0.70,0.40],carry:[1.0,0.92,0.42],nest:[0.92,0.27,0.12],food:[1.0,0.80,0.22]}, // ember
+  {hC:[0.30,0.65,1.0],fC:[0.55,0.95,1.0],ant:[0.80,0.88,1.0],carry:[0.70,1.0,1.0],nest:[0.42,0.72,1.0],food:[0.60,0.95,1.0]},     // ice
+  {hC:[1.0,0.20,0.85],fC:[0.20,1.0,0.85],ant:[1.0,0.62,0.95],carry:[0.62,1.0,0.92],nest:[1.0,0.22,0.6],food:[0.30,1.0,0.82]},     // neon
+  {hC:[0.45,0.50,0.56],fC:[0.90,0.92,1.0],ant:[0.72,0.74,0.78],carry:[1.0,1.0,1.0],nest:[0.62,0.64,0.68],food:[0.86,0.89,0.96]}   // mono
+];
+let pal=0;
+const rgb=c=>"rgb("+(c[0]*255|0)+","+(c[1]*255|0)+","+(c[2]*255|0)+")";
+const rgba=(c,a)=>"rgba("+(c[0]*255|0)+","+(c[1]*255|0)+","+(c[2]*255|0)+","+a+")";
+function buildLegend(){
+  const p=palettes[pal];
+  $("lg").innerHTML=
+    '<span><i style="background:'+rgb(p.hC)+'"></i>way home</span>'+
+    '<span><i style="background:'+rgb(p.fC)+'"></i>to food</span>'+
+    '<span><i style="background:'+rgb(p.ant)+'"></i>scout</span>'+
+    '<span><i style="background:'+rgb(p.carry)+'"></i>carrying</span>';
+}
+
+// ---- sliders (generated) ----
+const defs=[
+  {k:"n",     t:"ants",         mn:300, mx:6000, st:100,  g:()=>P.n,      s:v=>{P.n=+v;spawn();},  f:v=>v|0},
+  {k:"sa",    t:"sensor angle", mn:0.1, mx:1.4,  st:0.05, g:()=>P.sa,     s:v=>{P.sa=+v;},         f:v=>((+v*57.3)|0)+"°"},
+  {k:"sd",    t:"sensor reach", mn:2,   mx:30,   st:1,    g:()=>P.sd,     s:v=>{P.sd=+v;},         f:v=>v|0},
+  {k:"ts",    t:"turn",         mn:0.05,mx:1.2,  st:0.05, g:()=>P.ts,     s:v=>{P.ts=+v;},         f:v=>(+v).toFixed(2)},
+  {k:"speed", t:"speed",        mn:0.3, mx:3,    st:0.1,  g:()=>P.speed,  s:v=>{P.speed=+v;},      f:v=>(+v).toFixed(1)},
+  {k:"wander",t:"wander",       mn:0,   mx:1.2,  st:0.05, g:()=>P.wander, s:v=>{P.wander=+v;},     f:v=>(+v).toFixed(2)},
+  {k:"decay", t:"evaporate",    mn:0.80,mx:0.99, st:0.005,g:()=>P.decay,  s:v=>{P.decay=+v;},      f:v=>(+v).toFixed(3)},
+  {k:"diffuse",t:"diffuse",     mn:0,   mx:1,    st:0.05, g:()=>P.diffuse,s:v=>{P.diffuse=+v;},    f:v=>(+v).toFixed(2)},
+  {k:"gain",  t:"glow",         mn:0.02,mx:0.4,  st:0.01, g:()=>P.gain,   s:v=>{P.gain=+v;},       f:v=>(+v).toFixed(2)}
+];
+const rngs={},C=$("ctrls");
+defs.forEach(d=>{
+  const lab=document.createElement("div");lab.className="row";
+  const nm=document.createElement("span");nm.textContent=d.t;
+  const val=document.createElement("b");val.textContent=d.f(d.g());
+  const inp=document.createElement("input");inp.type="range";inp.min=d.mn;inp.max=d.mx;inp.step=d.st;inp.value=d.g();
+  inp.addEventListener("input",()=>{d.s(inp.value);val.textContent=d.f(d.g());});
+  lab.appendChild(nm);lab.appendChild(val);C.appendChild(lab);C.appendChild(inp);
+  rngs[d.k]={inp,val,d};
+});
+function applySlider(d,v){d.s(""+v);const r=rngs[d.k];r.inp.value=v;r.val.textContent=d.f(d.g());}
+function byk(k){return rngs[k].d;}
+function randSettings(){defs.forEach(d=>applySlider(d,Math.round((d.mn+Math.random()*(d.mx-d.mn))/d.st)*d.st));}
+function resetSettings(){defs.forEach(d=>applySlider(d,DEF[d.k]));}
+
+// ---- presets (tune the ants & scent, keep the map) ----
+function preset(p){
+  if(p==="wild"){randWorld();return;}
+  if(p==="forage") {applySlider(byk("speed"),1.0);applySlider(byk("wander"),0.35);applySlider(byk("decay"),0.95);applySlider(byk("diffuse"),0.5);applySlider(byk("sd"),9);applySlider(byk("ts"),0.45);applySlider(byk("n"),2500);}
+  else if(p==="frenzy"){applySlider(byk("speed"),2.1);applySlider(byk("wander"),0.9);applySlider(byk("decay"),0.92);applySlider(byk("diffuse"),0.7);applySlider(byk("ts"),0.8);}
+  else if(p==="highway"){applySlider(byk("speed"),1.0);applySlider(byk("wander"),0.12);applySlider(byk("decay"),0.985);applySlider(byk("diffuse"),0.3);applySlider(byk("sd"),12);applySlider(byk("ts"),0.35);}
+  else if(p==="scatter"){applySlider(byk("speed"),1.4);applySlider(byk("wander"),1.0);applySlider(byk("decay"),0.88);applySlider(byk("diffuse"),0.9);}
+  else if(p==="swarm"){applySlider(byk("n"),6000);applySlider(byk("speed"),1.0);applySlider(byk("wander"),0.35);applySlider(byk("decay"),0.95);}
+}
+
+// ---- simulation ----
+function sampleF(fld,x,y){
+  let ix=x|0,iy=y|0;
+  if(ix<0)ix=0;else if(ix>=fw)ix=fw-1;
+  if(iy<0)iy=0;else if(iy>=fh)iy=fh-1;
+  return fld[iy*fw+ix];
+}
+function steerTo(h,des,rate){let d=des-h;while(d>PI)d-=TAU;while(d<-PI)d+=TAU;
+  if(d>rate)d=rate;else if(d<-rate)d=-rate;return h+d;}
+function step(){
+  const sa=P.sa,sd=P.sd,ts=P.ts,sp=P.speed,wn=P.wander,dep=P.dep,nx0=nest.x,ny0=nest.y;
+  let carry=0;
+  for(let i=0;i<n;i++){
+    const m=amode[i],h=ah[i],x=ax[i],y=ay[i],sr=asr[i];
+    const fld=m?homeF:foodF;
+    const F=sampleF(fld,x+Math.cos(h)*sd,    y+Math.sin(h)*sd);
+    const L=sampleF(fld,x+Math.cos(h-sa)*sd, y+Math.sin(h-sa)*sd);
+    const R=sampleF(fld,x+Math.cos(h+sa)*sd, y+Math.sin(h+sa)*sd);
+    let nh=h;
+    if(F>=L&&F>=R){}
+    else if(F<L&&F<R){nh+=(Math.random()<0.5?-ts:ts);}
+    else if(L>R)nh-=ts;else if(R>L)nh+=ts;
+    nh+=(Math.random()-0.5)*wn;
+    const senseR=14*sr;
+    if(m===0){                                    // searching: hunt food
+      let bi=-1,bd=senseR*senseR;
+      for(let p=0;p<piles.length;p++){const P2=piles[p];if(P2.a<=0)continue;
+        const dx=P2.x-x,dy=P2.y-y,d2=dx*dx+dy*dy;if(d2<bd){bd=d2;bi=p;}}
+      if(bi>=0){const P2=piles[bi];nh=steerTo(nh,Math.atan2(P2.y-y,P2.x-x),ts*2);
+        if(bd<16){P2.a--;amode[i]=1;ares[i]=1;nh+=PI+(Math.random()-0.5);}}
+    }else{                                         // carrying: head home
+      const dx=nx0-x,dy=ny0-y,d2=dx*dx+dy*dy;
+      if(d2<784){nh=steerTo(nh,Math.atan2(dy,dx),ts*2);
+        if(d2<81){collected++;amode[i]=0;ares[i]=1;nh+=PI+(Math.random()-0.5);}}
+      carry++;
+    }
+    let nx=x+Math.cos(nh)*sp*aspd[i],ny=y+Math.sin(nh)*sp*aspd[i];
+    if(nx<1){nx=1;nh=PI-nh;}else if(nx>fw-1){nx=fw-1;nh=PI-nh;}
+    if(ny<1){ny=1;nh=-nh;}else if(ny>fh-1){ny=fh-1;nh=-nh;}
+    ax[i]=nx;ay[i]=ny;ah[i]=nh;
+    const r=ares[i];
+    if(r>0){const idx=(ny|0)*fw+(nx|0);if(amode[i]===0)homeF[idx]+=dep*r;else foodF[idx]+=dep*r;ares[i]=r-0.0026;}
+  }
+  carryN=carry;agit=n?carry/n:0;
+}
+function blurDecay(f){
+  const dec=P.decay,dif=P.diffuse,od=1-dif,T=0.3333333;
+  for(let y=0;y<fh;y++){const row=y*fw;
+    for(let x=0;x<fw;x++){const l=x===0?fw-1:x-1,r=x===fw-1?0:x+1;tmp[row+x]=(f[row+l]+f[row+x]+f[row+r])*T;}}
+  for(let y=0;y<fh;y++){const up=(y===0?fh-1:y-1)*fw,dn=(y===fh-1?0:y+1)*fw,row=y*fw;
+    for(let x=0;x<fw;x++){const bv=(tmp[up+x]+tmp[row+x]+tmp[dn+x])*T;f[row+x]=(f[row+x]*od+bv*dif)*dec;}}
+}
+function diffuse(){blurDecay(homeF);blurDecay(foodF);}
+
+// ---- food helpers ----
+function addFood(fx,fy,amt){
+  for(let p=0;p<piles.length;p++){const P2=piles[p];if((P2.x-fx)**2+(P2.y-fy)**2<144){P2.a+=amt;return;}}
+  if(piles.length<120)piles.push({x:fx,y:fy,a:amt});
+}
+function scatterFood(){const c=6+(Math.random()*4|0);
+  for(let i=0;i<c;i++){const a=Math.random()*TAU,rr=fw*(0.20+Math.random()*0.24);
+    addFood(nest.x+Math.cos(a)*rr,nest.y+Math.sin(a)*rr,180+(Math.random()*220|0));}}
+let autofeed=0,afc=0;
+function applyMouse(){
+  if(!mouse.down||mouse.mode!==1)return;
+  addFood(mouse.x*fw/W,mouse.y*fh/H,8);
+}
+
+// ---- render ----
+function draw(){
+  const data=imgData.data,gain=P.gain,tot=fw*fh,pa=palettes[pal];
+  const h0=pa.hC[0],h1=pa.hC[1],h2=pa.hC[2],f0=pa.fC[0],f1=pa.fC[1],f2=pa.fC[2];
+  for(let p=0;p<tot;p++){
+    const hv=homeF[p],fv=foodF[p];
+    const r=h0*hv+f0*fv,g=h1*hv+f1*fv,b=h2*hv+f2*fv,o=p<<2;
+    data[o]  =255*(1-Math.exp(-r*gain));
+    data[o+1]=255*(1-Math.exp(-g*gain));
+    data[o+2]=255*(1-Math.exp(-b*gain));
+    data[o+3]=255;
+  }
+  octx.putImageData(imgData,0,0);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
+  ctx.drawImage(off,0,0,fw,fh,0,0,W,H);
+  const sx=W/fw,sy=H/fh;
+  // nest
+  const nx=nest.x*sx,ny=nest.y*sy,nr=26*sx;
+  let gd=ctx.createRadialGradient(nx,ny,0,nx,ny,nr);
+  gd.addColorStop(0,rgba(pa.nest,0.95));gd.addColorStop(0.55,rgba(pa.nest,0.5));gd.addColorStop(1,rgba(pa.nest,0));
+  ctx.fillStyle=gd;ctx.beginPath();ctx.arc(nx,ny,nr,0,TAU);ctx.fill();
+  ctx.fillStyle="rgba(0,0,0,.55)";ctx.beginPath();ctx.arc(nx,ny,5*sx,0,TAU);ctx.fill();
+  // food piles
+  for(let p=0;p<piles.length;p++){const P2=piles[p];if(P2.a<=0)continue;
+    const x=P2.x*sx,y=P2.y*sy,rr=Math.min(34,(3+Math.sqrt(P2.a))*1.1);
+    gd=ctx.createRadialGradient(x,y,0,x,y,rr);
+    gd.addColorStop(0,rgba(pa.food,0.95));gd.addColorStop(0.6,rgba(pa.food,0.4));gd.addColorStop(1,rgba(pa.food,0));
+    ctx.fillStyle=gd;ctx.beginPath();ctx.arc(x,y,rr,0,TAU);ctx.fill();}
+  // ants (oriented ticks, batched by state)
+  ctx.lineCap="round";
+  ctx.strokeStyle=rgb(pa.ant);ctx.lineWidth=1.4;ctx.beginPath();
+  for(let i=0;i<n;i++){if(amode[i])continue;const c=Math.cos(ah[i]),s=Math.sin(ah[i]),x=ax[i]*sx,y=ay[i]*sy,L=2.4*aspd[i];
+    ctx.moveTo(x-c*L,y-s*L);ctx.lineTo(x+c*L,y+s*L);}
+  ctx.stroke();
+  ctx.strokeStyle=rgb(pa.carry);ctx.lineWidth=2.1;ctx.beginPath();
+  for(let i=0;i<n;i++){if(!amode[i])continue;const c=Math.cos(ah[i]),s=Math.sin(ah[i]),x=ax[i]*sx,y=ay[i]*sy,L=2.6*aspd[i];
+    ctx.moveTo(x-c*L,y-s*L);ctx.lineTo(x+c*L,y+s*L);}
+  ctx.stroke();
+  // cursor
+  const tc=mouse.mode>0?"255,210,120":"150,200,255";
+  for(let i=trail.length-1;i>=0;i--){const q=trail[i];q.l-=0.012;if(q.l<=0){trail.splice(i,1);continue;}
+    ctx.fillStyle="rgba("+tc+","+(q.l*0.5).toFixed(3)+")";
+    ctx.beginPath();ctx.arc(q.x,q.y,5+16*q.l,0,TAU);ctx.fill();}
+}
+
+// ---- audio: the colony conducts a generative ambient piece ----
+let actx=null,master,dFilt,dGain,send,notes=[],eSm=0,ePk=1,audioOn=0,lastNote=0,noteGap=1;
+function audioInit(){
+  actx=new (window.AudioContext||window.webkitAudioContext)();
+  master=actx.createGain();master.gain.value=0;master.connect(actx.destination);
+  const dl=actx.createDelay(1),fb=actx.createGain(),dlp=actx.createBiquadFilter();
+  dl.delayTime.value=0.45;fb.gain.value=0.42;dlp.type="lowpass";dlp.frequency.value=2000;
+  send=actx.createGain();send.gain.value=0.6;
+  send.connect(dl);dl.connect(dlp);dlp.connect(fb);fb.connect(dl);dl.connect(master);
+  dFilt=actx.createBiquadFilter();dFilt.type="lowpass";dFilt.frequency.value=400;dFilt.Q.value=3;
+  dGain=actx.createGain();dGain.gain.value=0.06;
+  dFilt.connect(dGain);dGain.connect(master);dGain.connect(send);
+  [55,82.5,110].forEach((f,i)=>{const o=actx.createOscillator();
+    o.type=i?"sawtooth":"triangle";o.frequency.value=f;o.detune.value=(i-1)*5;o.connect(dFilt);o.start();});
+  const lfo=actx.createOscillator(),lg=actx.createGain();
+  lfo.frequency.value=0.05;lg.gain.value=260;lfo.connect(lg);lg.connect(dFilt.frequency);lfo.start();
+  for(let o=0;o<4;o++)for(const s of [0,3,5,7,10])notes.push(110*Math.pow(2,(s+12*o)/12)); // A minor pentatonic
+}
+function note(L,now){
+  const f=notes[(Math.random()*Math.max(3,(L*notes.length)|0))|0];
+  const o=actx.createOscillator(),g=actx.createGain(),rel=2.5+Math.random()*2.5;
+  o.type="sine";o.frequency.value=f;o.connect(g);g.connect(master);g.connect(send);
+  g.gain.linearRampToValueAtTime(0.11,now+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0008,now+0.03+rel);
+  o.start(now);o.stop(now+rel+0.2);
+}
+function audioToggle(){
+  if(!actx)audioInit();
+  if(actx.state==="suspended")actx.resume();
+  audioOn^=1;
+  master.gain.setTargetAtTime(audioOn?0.5:0,actx.currentTime,0.4);
+  const b=$("bAud");b.classList.toggle("act",!!audioOn);b.innerHTML=audioOn?"&#128266; Audio":"&#128263; Audio";
+}
+
+// ---- loop ----
+const hud=$("hud");let last=performance.now(),fps=60,clean=0;
+function frame(t){
+  requestAnimationFrame(frame);
+  const ft=t-last;last=t;if(ft>0)fps+=(1000/ft-fps)*0.08;
+  if(!P.paused){
+    applyMouse();step();diffuse();
+    if(autofeed&&++afc>140){afc=0;addFood(fw*(0.1+0.8*Math.random()),fh*(0.1+0.8*Math.random()),150);}
+    if(++clean>60){clean=0;if(piles.length)piles=piles.filter(p=>p.a>0);}
+  }
+  draw();
+  if(audioOn&&actx){
+    eSm+=(agit-eSm)*0.1;ePk=Math.max(ePk*0.995,eSm,1e-6);
+    const L=Math.min(1,eSm/ePk),now=actx.currentTime;
+    dFilt.frequency.setTargetAtTime(240+L*L*2400,now,0.25);
+    dGain.gain.setTargetAtTime(P.paused?0:0.045+0.05*L,now,0.3);
+    if(!P.paused&&now-lastNote>noteGap){lastNote=now;note(L,now);noteGap=(2.3-1.8*L)*(0.6+0.8*Math.random());}
+  }
+  hud.textContent=(fps|0)+" fps · "+n+" ants · "+collected+" food";
+  $("stat").innerHTML="<b>"+collected+"</b> delivered &middot; <b>"+carryN+"</b> carrying &middot; <b>"+piles.length+"</b> piles";
+}
+
+// ---- controls wiring ----
+$("bRand").onclick=()=>randWorld();
+$("bReset").onclick=()=>spawn();
+$("bPause").onclick=function(){P.paused^=1;this.innerHTML=P.paused?"&#9654; Play":"&#10073;&#10073; Pause";};
+$("bMouse").onclick=function(){mouse.mode^=1;this.innerHTML=mouse.mode?"&#127830; Feed":"&#127968; Nest";
+  $("hint").textContent=mouse.mode?"drag on the floor to drop food":"click to move the nest";};
+document.querySelectorAll(".pre button").forEach(b=>b.onclick=()=>preset(b.dataset.p));
+$("bMut").onclick=()=>scatterFood();
+$("bEvo").onclick=function(){autofeed^=1;this.classList.toggle("act",!!autofeed);};
+$("bPal").onclick=()=>{pal=(pal+1)%palettes.length;buildLegend();};
+$("bAud").onclick=audioToggle;
+$("bRng").onclick=randSettings;
+$("bDef").onclick=resetSettings;
+function snap(){const a=document.createElement("a"),
+  t=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,19).replace(/[-:]/g,"").replace("T","-");
+  a.download="formica_"+($("seedIn").value||"shot").replace(/[^\w.-]/g,"_")+"_"+t+".png";a.href=cv.toDataURL("image/png");a.click();}
+$("bSnap").onclick=snap;
+$("bSeed").onclick=()=>{const v=parseInt($("seedIn").value.trim(),36);if(!isNaN(v)){genWorld(v);spawn();}};
+$("seedIn").addEventListener("keydown",e=>{if(e.key==="Enter")$("bSeed").click();});
+addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT")return;
+  const c=e.key.toLowerCase();
+  if(c===" "){$("bPause").click();e.preventDefault();}
+  else if(c==="r")randWorld();else if(c==="m")scatterFood();
+  else if(c==="e")$("bEvo").click();else if(c==="p")$("bPal").click();
+  else if(c==="n")spawn();else if(c==="a")audioToggle();else if(c==="s")snap();
+  else if(c==="i")$("about").classList.toggle("show");
+  else if(c==="h")($("ui").classList.contains("hide")?$("tog"):$("x")).click();
+});
+$("ab").onclick=()=>$("about").classList.add("show");
+$("aClose").onclick=()=>$("about").classList.remove("show");
+$("about").onclick=e=>{if(e.target===$("about"))$("about").classList.remove("show");};
+function hideUI(){$("ui").classList.add("hide");$("tog").style.display="block";}
+let hideT;function armHide(){clearTimeout(hideT);hideT=setTimeout(hideUI,15000);}
+["pointermove","pointerdown","input"].forEach(e=>$("ui").addEventListener(e,armHide));armHide();
+$("x").onclick=hideUI;
+$("tog").onclick=()=>{$("ui").classList.remove("hide");$("tog").style.display="none";armHide();};
+cv.addEventListener("pointerdown",e=>{mouse.down=true;mouse.x=e.clientX;mouse.y=e.clientY;pushTrail(e.clientX,e.clientY);$("hint").style.opacity=0;
+  if(mouse.mode===1)addFood(e.clientX*fw/W,e.clientY*fh/H,60);else nest={x:e.clientX*fw/W,y:e.clientY*fh/H};});
+cv.addEventListener("pointermove",e=>{mouse.x=e.clientX;mouse.y=e.clientY;if(mouse.down)pushTrail(e.clientX,e.clientY);});
+addEventListener("pointerup",()=>{mouse.down=false;});
+addEventListener("pointercancel",()=>{mouse.down=false;});
+
+// ---- boot ----
+resize();buildLegend();
+setTimeout(()=>$("hint").style.opacity=0,6000);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

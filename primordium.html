@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Primordium · particle life</title>
+<style>
+  :root{--g:#39e0c8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#05060a;color:#cfe;
+    font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
+  #c{position:fixed;inset:0;display:block;touch-action:none}
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(125% 125% at 50% 45%,transparent 52%,#000 100%)}
+  #ui{position:fixed;top:12px;left:12px;width:266px;max-height:calc(100% - 24px);overflow:auto;
+    background:rgba(9,13,21,.72);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+    border:1px solid rgba(90,230,210,.18);border-radius:14px;padding:9px 12px;
+    box-shadow:0 12px 44px rgba(0,0,0,.55);transition:transform .25s;z-index:4}
+  #ui.hide{transform:translateX(-290px)}
+  #ui::-webkit-scrollbar{width:6px}#ui::-webkit-scrollbar-thumb{background:#1f2c46;border-radius:3px}
+  h1{font-size:13px;letter-spacing:2px;color:var(--g);font-weight:700}
+  .sub{font-size:9px;opacity:.55;margin:2px 0 5px;line-height:1.4}
+  .sub span{cursor:pointer;color:var(--g)}
+  .row{display:flex;justify-content:space-between;align-items:baseline;margin:5px 0 1px;font-size:10px;opacity:.82}
+  .row b{color:#fff;font-weight:600;opacity:.92;font-size:10px}
+  input[type=range]{width:100%;height:4px;-webkit-appearance:none;appearance:none;
+    background:#1d2740;border-radius:3px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;
+    background:var(--g);cursor:pointer;box-shadow:0 0 9px var(--g)}
+  input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;
+    background:var(--g);cursor:pointer;box-shadow:0 0 9px var(--g)}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}
+  button{font-family:inherit;font-size:10px;color:#dff;background:#141d30;
+    border:1px solid rgba(90,230,210,.22);border-radius:7px;padding:5px 4px;cursor:pointer;transition:.15s}
+  button:hover{background:#1c2942;border-color:var(--g)}
+  button:active{transform:translateY(1px)}
+  .pri{background:linear-gradient(180deg,#1d9a89,#13675c);border-color:#2fd;color:#eafffb;font-weight:600}
+  .pre{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+  .pre button{flex:1 1 30%;padding:4px 4px;font-size:10px}
+  .mini{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:5px}
+  .mini button{padding:5px 3px;font-size:10px}
+  .act{background:#1b8f80;border-color:#2fd;color:#eafffb}
+  .seed{display:flex;gap:5px;margin-top:6px;align-items:center;font-size:10px;opacity:.85}
+  .seed input{flex:1;min-width:0;background:#0c1320;border:1px solid rgba(90,230,210,.2);
+    color:#bff;border-radius:6px;padding:4px 6px;font-family:inherit;font-size:10px}
+  .seed button{padding:4px 8px;font-size:10px}
+  .lbl{font-size:9px;opacity:.5;margin-top:7px;text-transform:uppercase;letter-spacing:1.5px}
+  #mx{display:grid;gap:2px;margin:5px auto 0;max-width:210px;touch-action:none;user-select:none}
+  #mx div{aspect-ratio:1;border-radius:2px;cursor:ns-resize}
+  #tog{position:fixed;top:12px;left:12px;z-index:5;width:36px;height:36px;border-radius:11px;
+    font-size:18px;line-height:1;display:none;background:rgba(9,13,21,.8)}
+  #hud{position:fixed;right:13px;bottom:11px;font-size:11px;opacity:.45;text-align:right;pointer-events:none}
+  #hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);font-size:12.5px;
+    color:var(--g);opacity:.92;pointer-events:none;transition:opacity 1.4s;text-shadow:0 0 14px #000}
+  #about{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;
+    padding:18px;background:rgba(2,4,8,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #about.show{display:flex}
+  #about .card{max-width:432px;max-height:88%;overflow:auto;background:rgba(11,16,26,.97);
+    border:1px solid rgba(90,230,210,.25);border-radius:16px;padding:22px 24px;font-size:13px;
+    line-height:1.5;box-shadow:0 22px 72px rgba(0,0,0,.7)}
+  #about h2{color:var(--g);letter-spacing:3px;font-size:18px;margin-bottom:10px}
+  #about h3{color:#fff;font-size:13px;margin:15px 0 5px;opacity:.95}
+  #about p{opacity:.82;margin:7px 0}
+  #about ul{margin:6px 0 6px 18px;opacity:.82}#about li{margin:4px 0}
+  #about code{background:#0b1422;border:1px solid #1c2942;border-radius:5px;padding:1px 5px;color:#8ff}
+  #about .cr{opacity:.5;font-size:11px;margin-top:16px}
+  #about button{margin-top:14px;width:100%;padding:10px}
+  #home{position:fixed;top:12px;right:12px;z-index:6;font-family:inherit;font-size:11px;font-weight:600;
+    letter-spacing:1.5px;text-decoration:none;color:var(--g);opacity:.55;
+    background:rgba(8,9,14,.6);border:1px solid rgba(255,255,255,.14);
+    border-radius:9px;padding:5px 10px;transition:opacity .15s,background .15s}
+  #home:hover{opacity:1;background:rgba(8,9,14,.85)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<a id="home" href="index.html" title="back to the collection">&lsaquo; Primordia</a>
+<button id="tog" title="show panel">&#9776;</button>
+<div id="ui">
+  <h1>PRIMORDIUM</h1>
+  <div class="sub">Simple rules &rarr; emergent life. Hit <b>Randomize</b> to spawn a new organism. <span id="x">[hide]</span> <span id="ab">[about]</span></div>
+  <div id="ctrls"></div>
+  <div class="btns">
+    <button class="pri" id="bRand">&#9889; Randomize</button>
+    <button id="bReset">&#8635; Respawn</button>
+    <button id="bPause">&#10073;&#10073; Pause</button>
+    <button id="bMouse">&#9995; Push</button>
+    <button id="bAud" style="grid-column:1/3">&#128263; Audio</button>
+  </div>
+  <div class="pre">
+    <button data-p="cells" title="Each species strongly attracts its own kind and repels all others, so colours gather into tight, membrane-like blobs that keep their distance.">Cells</button>
+    <button data-p="chase" title="Every colour is pulled toward the next colour in the cycle but not the reverse; that one-way attraction makes them hunt each other in moving trains.">Chase</button>
+    <button data-p="snakes" title="Self-attraction, plus a pull toward the next colour and a push from the previous one, links particles into wriggling chains.">Snakes</button>
+    <button data-p="gas" title="Almost everything repels everything else, so particles spread out and drift like a diffuse, glowing gas.">Gas</button>
+    <button data-p="random" title="Discards the rules and rolls a brand-new random matrix from a fresh seed: a totally unpredictable organism (same as Randomize, key R).">Wild</button>
+  </div>
+  <div class="mini">
+    <button id="bMut" title="Nudges every rule by a small random amount, keeping the creature's character but shifting its behaviour. Great for exploring nearby variations (key M).">&#9883; Mutate</button>
+    <button id="bEvo" title="Keeps mutating a little every few seconds, so the ecosystem slowly drifts and morphs on its own. Click again to stop (key E).">&#8734; Evolve</button>
+    <button id="bPal" title="Cycles the colour scheme (spectrum, fire, ice, candy, mono). Changes only the look, not the behaviour (key P).">&#127912; Palette</button>
+  </div>
+  <div class="btns" style="margin-top:6px">
+    <button id="bRng" title="Roll fresh random values for all eight sliders at once (particles, species, radius, force, glide, core, speed, trail). Keeps the current organism's rules.">&#127922; Settings</button>
+    <button id="bDef" title="Reset all eight sliders back to their default starting values.">&#8634; Defaults</button>
+    <button id="bSnap" style="grid-column:1/3" title="Save the current frame as a PNG image (just the artwork, no panel). Key S.">&#128247; Save PNG</button>
+  </div>
+  <div class="seed">seed <input id="seedIn" spellcheck="false" title="copy or type a seed, then Load"><button id="bSeed">Load</button></div>
+  <div class="lbl" style="margin-top:9px">keys &middot; space r m e p a n h</div>
+  <div class="lbl">interaction matrix &middot; drag cells &updownarrow;</div>
+  <div id="mx"></div>
+</div>
+<div id="about"><div class="card">
+  <h2>PRIMORDIUM</h2>
+  <p>An <b>emergent particle-life</b> ecosystem. Hundreds of particles, each one of a few
+  <i>species</i> (colours), obey one tiny rule: <b>how strongly am I pulled toward &mdash; or
+  pushed away from &mdash; each other species?</b> Those forces live in the colour grid under the
+  controls. Nothing is scripted; every cell, chaser, membrane and pulsing creature you see
+  <i>emerges</i> from that grid alone.</p>
+  <h3>The force law</h3>
+  <p>For two particles at distance r (scaled to the interaction radius, 0&rarr;1):</p>
+  <ul>
+    <li><b>r &lt; core</b> &mdash; always repel, so particles never collapse together.</li>
+    <li><b>core &lt; r &lt; 1</b> &mdash; attract / repel by the grid value a:
+      <code>f = a&middot;(1 &minus; |2r&minus;1&minus;core| / (1&minus;core))</code></li>
+    <li><b>r &gt; 1</b> &mdash; no force at all.</li>
+  </ul>
+  <p>The grid is <b>asymmetric</b> &mdash; A chasing B need not equal B chasing A &mdash; and that
+  imbalance is what turns dull symmetry into life-like pursuit.</p>
+  <h3>Make it yours</h3>
+  <p>Every organism is generated from a 32-bit <b>seed</b>: copy it to save a creature or paste a
+  friend's, then <b>Load</b>. <b>Mutate</b> nudges the rules; <b>Evolve</b> keeps mutating so the
+  ecosystem drifts on its own. Drag a matrix cell up/down to hand-tune one relationship, and drag
+  the canvas to stir the swarm. The presets (Cells, Chase, Snakes, Gas) are hand-built starting points.</p>
+  <h3>Sound</h3>
+  <p>Toggle <b>Audio</b> (the <code>a</code> key, or the button) and the swarm <i>conducts</i> a
+  generative ambient piece: a breathing drone under a soft pentatonic melody, washed through a long
+  feedback delay. The swarm's kinetic energy is the conductor &mdash; frantic motion makes the notes
+  busier, higher and brighter, while settling into stable structures makes the music sparse, low and
+  calm. Pentatonic tuning means it never hits a wrong note, and every run is different. All synthesised
+  live with the Web Audio API &mdash; still no files, no network.</p>
+  <h3>Keyboard</h3>
+  <p><code>space</code> pause &middot; <code>r</code> randomize &middot; <code>m</code> mutate &middot;
+  <code>e</code> evolve &middot; <code>p</code> palette &middot; <code>a</code> sound &middot;
+  <code>n</code> respawn &middot; <code>h</code> hide panel &middot; <code>i</code> this panel</p>
+  <p class="cr">A single self-contained HTML file &middot; no libraries, no network, no assets.
+  Real-time O(n) spatial-hash simulation. Built with Claude.</p>
+  <button id="aClose">close</button>
+</div></div>
+<div id="hud"></div>
+<div id="hint">drag on the canvas to stir the swarm</div>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const cv=$("c"),ctx=cv.getContext("2d",{alpha:false});
+let W,H;
+function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight;setR();}
+addEventListener("resize",resize);
+
+// ---- state ----
+const P={n:700,k:6,rN:0.105,rMax:80,force:11,fhl:0.04,beta:0.3,dt:0.02,fade:0.16,paused:0};
+const DEF=Object.assign({},P);   // default settings, captured at launch
+function setR(){P.rMax=P.rN*Math.min(W,H);}
+let n=0,x,y,vx,vy,typ,nxt,head=new Int32Array(0);
+const mat=new Float32Array(64);          // up to 8x8, stride = P.k
+let cols_=[];
+const mouse={x:0,y:0,down:false,r:170,s:9,mode:1};
+const trail=[];   // fading cursor path while you stir the swarm
+function pushTrail(x,y){const t=trail;if(t.length){const p=t[t.length-1];
+  if((x-p.x)*(x-p.x)+(y-p.y)*(y-p.y)<36)return;}t.push({x,y,l:1});if(t.length>240)t.shift();}
+
+function spawn(){
+  n=P.n;
+  x=new Float32Array(n);y=new Float32Array(n);
+  vx=new Float32Array(n);vy=new Float32Array(n);
+  typ=new Uint8Array(n);nxt=new Int32Array(n);
+  for(let i=0;i<n;i++){x[i]=Math.random()*W;y[i]=Math.random()*H;typ[i]=(Math.random()*P.k)|0;}
+}
+const pals=[
+  (i,k)=>"hsl("+(i/k*360|0)+",95%,60%)",                  // spectrum
+  (i,k)=>"hsl("+(i/k*72|0)+",100%,"+(50+i/k*16|0)+"%)",   // fire
+  (i,k)=>"hsl("+(170+i/k*130|0)+",90%,62%)",              // ice
+  (i,k)=>"hsl("+(i/k*330|0)+",82%,73%)",                  // candy
+  (i,k)=>"hsl("+(155+i/k*45|0)+",22%,"+(38+i/k*48|0)+"%)" // mono
+];
+let pal=0;
+function buildColors(){cols_=[];for(let i=0;i<P.k;i++)cols_.push(pals[pal](i,P.k));}
+
+// reproducible "organisms": the matrix is derived from a 32-bit seed
+let seed=0;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function showSeed(){$("seedIn").value=seed.toString(36);}
+function genSeed(s){seed=s>>>0;const r=mulberry32(seed||1);
+  for(let i=0;i<P.k;i++)for(let j=0;j<P.k;j++)mat[i*P.k+j]=r()*2-1;buildMx();showSeed();}
+function randMat(){genSeed((Math.random()*4294967296)>>>0);}
+function mutate(amt){for(let i=0,L=P.k*P.k;i<L;i++){let v=mat[i]+(Math.random()*2-1)*amt;
+  mat[i]=v<-1?-1:v>1?1:v;}buildMx();$("seedIn").value="custom";}
+
+// ---- interaction matrix editor ----
+const mx=$("mx");
+function colorCell(d){
+  const v=mat[(+d.dataset.i)*P.k+(+d.dataset.j)],a=(0.1+0.9*Math.abs(v)).toFixed(2);
+  d.style.background=v>=0?"rgba(60,232,170,"+a+")":"rgba(244,72,96,"+a+")";
+}
+function buildMx(){
+  mx.style.gridTemplateColumns="repeat("+P.k+",1fr)";
+  mx.innerHTML="";
+  for(let i=0;i<P.k;i++)for(let j=0;j<P.k;j++){
+    const d=document.createElement("div");
+    d.dataset.i=i;d.dataset.j=j;
+    d.style.borderLeft="2px solid "+cols_[i];
+    d.style.borderTop="2px solid "+cols_[j];
+    colorCell(d);mx.appendChild(d);
+  }
+}
+let drag=null;
+mx.addEventListener("pointerdown",e=>{
+  const d=e.target.closest("div");if(!d||d===mx)return;
+  drag={d,i:+d.dataset.i,j:+d.dataset.j,y:e.clientY,v:mat[(+d.dataset.i)*P.k+(+d.dataset.j)]};
+  mx.setPointerCapture(e.pointerId);e.preventDefault();
+});
+mx.addEventListener("pointermove",e=>{
+  if(!drag)return;
+  let v=drag.v-(e.clientY-drag.y)/120;v=v<-1?-1:v>1?1:v;
+  mat[drag.i*P.k+drag.j]=v;colorCell(drag.d);
+});
+addEventListener("pointerup",()=>{drag=null;mouse.down=false;});
+
+// ---- sliders (generated) ----
+const defs=[
+  {k:"n",   t:"particles", mn:100, mx:2200, st:20,   g:()=>P.n,    s:v=>{P.n=+v;spawn();},  f:v=>v|0},
+  {k:"k",   t:"species",   mn:2,   mx:8,    st:1,    g:()=>P.k,    s:v=>{P.k=+v;onK();},    f:v=>v|0},
+  {k:"rN",  t:"radius",    mn:0.04,mx:0.22, st:0.005,g:()=>P.rN,   s:v=>{P.rN=+v;setR();},  f:v=>((v*100)|0)+"%"},
+  {k:"force",t:"force",    mn:1,   mx:40,   st:1,    g:()=>P.force,s:v=>{P.force=+v;},      f:v=>v|0},
+  {k:"fhl", t:"glide",     mn:0.01,mx:0.2,  st:0.005,g:()=>P.fhl,  s:v=>{P.fhl=+v;},        f:v=>(+v).toFixed(2)},
+  {k:"beta",t:"core",      mn:0.05,mx:0.5,  st:0.01, g:()=>P.beta, s:v=>{P.beta=+v;},       f:v=>(+v).toFixed(2)},
+  {k:"dt",  t:"speed",     mn:0.004,mx:0.05,st:0.002,g:()=>P.dt,   s:v=>{P.dt=+v;},         f:v=>(+v).toFixed(3)},
+  {k:"fade",t:"trail",     mn:0.03,mx:1,    st:0.01, g:()=>P.fade, s:v=>{P.fade=+v;},       f:v=>(+v>=1?"off":(+v).toFixed(2))}
+];
+const rngs={},C=$("ctrls");
+defs.forEach(d=>{
+  const lab=document.createElement("div");lab.className="row";
+  const nm=document.createElement("span");nm.textContent=d.t;
+  const val=document.createElement("b");val.textContent=d.f(d.g());
+  const inp=document.createElement("input");inp.type="range";inp.min=d.mn;inp.max=d.mx;inp.step=d.st;inp.value=d.g();
+  inp.addEventListener("input",()=>{d.s(inp.value);val.textContent=d.f(d.g());});
+  lab.appendChild(nm);lab.appendChild(val);C.appendChild(lab);C.appendChild(inp);
+  rngs[d.k]={inp,val,d};
+});
+function applySlider(d,v){d.s(""+v);const r=rngs[d.k];r.inp.value=v;r.val.textContent=d.f(d.g());}
+function randSettings(){defs.forEach(d=>applySlider(d,Math.round((d.mn+Math.random()*(d.mx-d.mn))/d.st)*d.st));}
+function resetSettings(){defs.forEach(d=>applySlider(d,DEF[d.k]));}
+function onK(){buildColors();genSeed(seed);spawn();}
+
+// ---- presets ----
+function preset(p){
+  if(p==="random"){randMat();return;}
+  const k=P.k;
+  for(let i=0;i<k;i++)for(let j=0;j<k;j++){
+    let v=0;
+    if(p==="cells")  v=i===j?1:-0.35;
+    else if(p==="gas")v=i===j?-0.1:-(0.3+Math.random()*0.6);
+    else if(p==="chase")v=j===(i+1)%k?1:i===j?-0.15:-0.25;
+    else if(p==="snakes")v=i===j?0.55:j===(i+1)%k?0.45:i===(j+1)%k?-0.45:-0.1;
+    mat[i*k+j]=v;
+  }
+  buildMx();
+}
+
+// ---- simulation ----
+const seen=[];
+function step(){
+  const ff=Math.pow(0.5,P.dt/P.fhl),rM=P.rMax,r2=rM*rM;
+  const cols=Math.max(1,Math.floor(W/rM)),rows=Math.max(1,Math.floor(H/rM));
+  const cw=W/cols,ch=H/rows,nc=cols*rows;
+  if(head.length<nc)head=new Int32Array(nc);
+  head.fill(-1,0,nc);
+  for(let i=0;i<n;i++){
+    let cx=(x[i]/cw)|0;if(cx>=cols)cx=cols-1;else if(cx<0)cx=0;
+    let cy=(y[i]/ch)|0;if(cy>=rows)cy=rows-1;else if(cy<0)cy=0;
+    const c=cy*cols+cx;nxt[i]=head[c];head[c]=i;
+  }
+  const fpf=rM*P.force,k=P.k,beta=P.beta,ib=1/(1-beta);
+  for(let i=0;i<n;i++){
+    let fx=0,fy=0;const xi=x[i],yi=y[i],ti=typ[i]*k;
+    let cx=(xi/cw)|0;if(cx>=cols)cx=cols-1;else if(cx<0)cx=0;
+    let cy=(yi/ch)|0;if(cy>=rows)cy=rows-1;else if(cy<0)cy=0;
+    seen.length=0;
+    for(let oy=-1;oy<=1;oy++){
+      const ccy=(cy+oy+rows)%rows;
+      for(let ox=-1;ox<=1;ox++){
+        const cid=ccy*cols+((cx+ox+cols)%cols);
+        if(seen.indexOf(cid)>=0)continue;seen.push(cid);
+        let j=head[cid];
+        while(j!==-1){
+          if(j!==i){
+            let dx=x[j]-xi,dy=y[j]-yi;
+            if(dx>W*.5)dx-=W;else if(dx<-W*.5)dx+=W;
+            if(dy>H*.5)dy-=H;else if(dy<-H*.5)dy+=H;
+            const d2=dx*dx+dy*dy;
+            if(d2>0&&d2<r2){
+              const d=Math.sqrt(d2),rr=d/rM;
+              let f;
+              if(rr<beta)f=rr/beta-1;
+              else f=mat[ti+typ[j]]*(1-Math.abs(2*rr-1-beta)*ib);
+              const id=f/d;fx+=dx*id;fy+=dy*id;
+            }
+          }
+          j=nxt[j];
+        }
+      }
+    }
+    fx*=fpf;fy*=fpf;
+    let nvx=vx[i]*ff+fx*P.dt,nvy=vy[i]*ff+fy*P.dt;
+    if(mouse.down){
+      let dx=xi-mouse.x,dy=yi-mouse.y;const md=Math.sqrt(dx*dx+dy*dy);
+      if(md<mouse.r&&md>0){const pp=(1-md/mouse.r)*mouse.s*mouse.mode/md;nvx+=dx*pp;nvy+=dy*pp;}
+    }
+    vx[i]=nvx;vy[i]=nvy;
+  }
+  for(let i=0;i<n;i++){
+    x[i]+=vx[i]*P.dt;y[i]+=vy[i]*P.dt;
+    if(x[i]<0)x[i]+=W;else if(x[i]>=W)x[i]-=W;
+    if(y[i]<0)y[i]+=H;else if(y[i]>=H)y[i]-=H;
+  }
+}
+
+// ---- render ----
+function draw(){
+  ctx.globalCompositeOperation="source-over";
+  ctx.fillStyle="rgba(5,6,10,"+P.fade+")";
+  ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation="lighter";
+  const rad=2.5,TAU=6.2832;
+  for(let t=0;t<P.k;t++){
+    ctx.fillStyle=cols_[t];ctx.beginPath();
+    for(let i=0;i<n;i++)if(typ[i]===t){ctx.moveTo(x[i]+rad,y[i]);ctx.arc(x[i],y[i],rad,0,TAU);}
+    ctx.fill();
+  }
+  const tc=mouse.mode>0?"255,150,90":"120,230,255";   // push = warm, pull = cool
+  for(let i=trail.length-1;i>=0;i--){const p=trail[i];p.l-=0.009;
+    if(p.l<=0){trail.splice(i,1);continue;}
+    ctx.fillStyle="rgba("+tc+","+(p.l*0.4).toFixed(3)+")";
+    ctx.beginPath();ctx.arc(p.x,p.y,4+11*p.l,0,TAU);ctx.fill();
+  }
+}
+
+// ---- audio: the swarm conducts a generative ambient piece ----
+let actx=null,master,dFilt,dGain,send,notes=[],eSm=0,ePk=1,audioOn=0,lastNote=0,noteGap=1;
+function audioInit(){
+  actx=new (window.AudioContext||window.webkitAudioContext)();
+  master=actx.createGain();master.gain.value=0;master.connect(actx.destination);
+  // ambient space: damped feedback delay
+  const dl=actx.createDelay(1),fb=actx.createGain(),dlp=actx.createBiquadFilter();
+  dl.delayTime.value=0.45;fb.gain.value=0.42;dlp.type="lowpass";dlp.frequency.value=2000;
+  send=actx.createGain();send.gain.value=0.6;
+  send.connect(dl);dl.connect(dlp);dlp.connect(fb);fb.connect(dl);dl.connect(master);
+  // breathing drone pad (root / fifth / octave)
+  dFilt=actx.createBiquadFilter();dFilt.type="lowpass";dFilt.frequency.value=400;dFilt.Q.value=3;
+  dGain=actx.createGain();dGain.gain.value=0.06;
+  dFilt.connect(dGain);dGain.connect(master);dGain.connect(send);
+  [55,82.5,110].forEach((f,i)=>{const o=actx.createOscillator();
+    o.type=i?"sawtooth":"triangle";o.frequency.value=f;o.detune.value=(i-1)*5;o.connect(dFilt);o.start();});
+  const lfo=actx.createOscillator(),lg=actx.createGain();   // slow filter breathing
+  lfo.frequency.value=0.05;lg.gain.value=260;lfo.connect(lg);lg.connect(dFilt.frequency);lfo.start();
+  for(let o=0;o<4;o++)for(const s of [0,3,5,7,10])notes.push(110*Math.pow(2,(s+12*o)/12)); // A minor pentatonic
+}
+function note(L,now){
+  const f=notes[(Math.random()*Math.max(3,(L*notes.length)|0))|0];
+  const o=actx.createOscillator(),g=actx.createGain(),rel=2.5+Math.random()*2.5;
+  o.type="sine";o.frequency.value=f;o.connect(g);g.connect(master);g.connect(send);
+  g.gain.linearRampToValueAtTime(0.11,now+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0008,now+0.03+rel);
+  o.start(now);o.stop(now+rel+0.2);
+}
+function audioToggle(){
+  if(!actx)audioInit();
+  if(actx.state==="suspended")actx.resume();
+  audioOn^=1;
+  master.gain.setTargetAtTime(audioOn?0.5:0,actx.currentTime,0.4);
+  const b=$("bAud");b.classList.toggle("act",!!audioOn);b.innerHTML=audioOn?"&#128266; Audio":"&#128263; Audio";
+}
+
+// ---- loop ----
+const hud=$("hud");let last=performance.now(),fps=60,evo=0,evc=0;
+function frame(t){
+  requestAnimationFrame(frame);
+  const ft=t-last;last=t;if(ft>0)fps+=(1000/ft-fps)*0.08;
+  if(!P.paused){step();if(evo&&++evc>80){evc=0;mutate(0.07);}}
+  draw();
+  if(audioOn&&actx){
+    let s=0;for(let i=0;i<n;i++)s+=vx[i]*vx[i]+vy[i]*vy[i];
+    eSm+=((n?s/n:0)-eSm)*0.1;ePk=Math.max(ePk*0.995,eSm,1e-6);
+    const L=Math.min(1,eSm/ePk),now=actx.currentTime;
+    dFilt.frequency.setTargetAtTime(240+L*L*2400,now,0.25);
+    dGain.gain.setTargetAtTime(P.paused?0:0.045+0.05*L,now,0.3);
+    if(!P.paused&&now-lastNote>noteGap){lastNote=now;note(L,now);noteGap=(2.3-1.8*L)*(0.6+0.8*Math.random());}
+  }
+  hud.textContent=(fps|0)+" fps · "+n+" particles · "+P.k+" species";
+}
+
+// ---- controls wiring ----
+$("bRand").onclick=()=>randMat();
+$("bReset").onclick=()=>spawn();
+$("bPause").onclick=function(){P.paused^=1;this.innerHTML=P.paused?"&#9654; Play":"&#10073;&#10073; Pause";};
+$("bMouse").onclick=function(){mouse.mode*=-1;this.innerHTML=mouse.mode>0?"&#9995; Push":"&#129522; Pull";};
+document.querySelectorAll(".pre button").forEach(b=>b.onclick=()=>preset(b.dataset.p));
+$("bMut").onclick=()=>mutate(0.25);
+$("bEvo").onclick=function(){evo^=1;this.classList.toggle("act",!!evo);};
+$("bPal").onclick=()=>{pal=(pal+1)%pals.length;buildColors();buildMx();};
+$("bAud").onclick=audioToggle;
+$("bRng").onclick=randSettings;
+$("bDef").onclick=resetSettings;
+function snap(){const a=document.createElement("a"),
+  t=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,19).replace(/[-:]/g,"").replace("T","-");
+  a.download="primordium_"+($("seedIn").value||"shot")+"_"+t+".png";a.href=cv.toDataURL("image/png");a.click();}
+$("bSnap").onclick=snap;
+$("bSeed").onclick=()=>{const v=parseInt($("seedIn").value.trim(),36);if(!isNaN(v))genSeed(v);};
+$("seedIn").addEventListener("keydown",e=>{if(e.key==="Enter")$("bSeed").click();});
+addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT")return;
+  const c=e.key.toLowerCase();
+  if(c===" "){$("bPause").click();e.preventDefault();}
+  else if(c==="r")randMat();else if(c==="m")mutate(0.25);
+  else if(c==="e")$("bEvo").click();else if(c==="p")$("bPal").click();
+  else if(c==="n")spawn();else if(c==="a")audioToggle();else if(c==="s")snap();
+  else if(c==="i")$("about").classList.toggle("show");
+  else if(c==="h")($("ui").classList.contains("hide")?$("tog"):$("x")).click();
+});
+$("ab").onclick=()=>$("about").classList.add("show");
+$("aClose").onclick=()=>$("about").classList.remove("show");
+$("about").onclick=e=>{if(e.target===$("about"))$("about").classList.remove("show");};
+function hideUI(){$("ui").classList.add("hide");$("tog").style.display="block";}
+let hideT;function armHide(){clearTimeout(hideT);hideT=setTimeout(hideUI,15000);}
+["pointermove","pointerdown","input"].forEach(e=>$("ui").addEventListener(e,armHide));armHide();
+$("x").onclick=hideUI;
+$("tog").onclick=()=>{$("ui").classList.remove("hide");$("tog").style.display="none";armHide();};
+cv.addEventListener("pointerdown",e=>{mouse.down=true;mouse.x=e.clientX;mouse.y=e.clientY;pushTrail(e.clientX,e.clientY);$("hint").style.opacity=0;});
+cv.addEventListener("pointermove",e=>{mouse.x=e.clientX;mouse.y=e.clientY;if(mouse.down)pushTrail(e.clientX,e.clientY);});
+
+// ---- boot ----
+resize();buildColors();randMat();spawn();
+setTimeout(()=>$("hint").style.opacity=0,6000);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

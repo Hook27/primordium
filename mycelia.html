@@ -65,11 +65,17 @@
   #about code{background:#1a130a;border:1px solid #3a2c16;border-radius:5px;padding:1px 5px;color:#ffd86a}
   #about .cr{opacity:.5;font-size:11px;margin-top:16px}
   #about button{margin-top:14px;width:100%;padding:10px}
+  #home{position:fixed;top:12px;right:12px;z-index:6;font-family:inherit;font-size:11px;font-weight:600;
+    letter-spacing:1.5px;text-decoration:none;color:var(--g);opacity:.55;
+    background:rgba(8,9,14,.6);border:1px solid rgba(255,255,255,.14);
+    border-radius:9px;padding:5px 10px;transition:opacity .15s,background .15s}
+  #home:hover{opacity:1;background:rgba(8,9,14,.85)}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="vig"></div>
+<a id="home" href="index.html" title="back to the collection">&lsaquo; Primordia</a>
 <button id="tog" title="show panel">&#9776;</button>
 <div id="ui">
   <h1>MYCELIA</h1>
