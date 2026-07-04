@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Primordia · four worlds of emergence</title>
-<meta name="description" content="Four self-contained toys where simple rules become life: Primordium, Mycelia, Formica and Sturnus.">
+<title>Primordia · five worlds of emergence</title>
+<meta name="description" content="Five self-contained toys where simple rules become life: Primordium, Primordium II, Mycelia, Formica and Sturnus.">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   :root{--bg:#06070c}
@@ -57,12 +57,13 @@
   <header>
     <div class="kicker">a cabinet of emergence</div>
     <h1>PRIMORDIA</h1>
-    <p class="lede">Four self-contained worlds where a handful of <b>tiny rules</b> become something that
+    <p class="lede">Five self-contained worlds where a handful of <b>tiny rules</b> become something that
     looks alive. No libraries, no network, no assets &mdash; each is a single HTML file you can save, share
     or pull apart. They are a small museum of the ways order makes itself: out of <b>forces</b>, out of
     <b>scent-trails</b>, and out of <b>alignment</b>.</p>
     <div class="three">
       <span><i style="background:#39e0c8"></i>Forces</span>
+      <span><i style="background:#6ea8ff"></i>Forces &middot; GPU</span>
       <span><i style="background:#f3c14b"></i>Stigmergy</span>
       <span><i style="background:#e2613a"></i>Stigmergy</span>
       <span><i style="background:#c98bd6"></i>Alignment</span>
@@ -76,6 +77,16 @@
         <div class="nm"><h2>PRIMORDIUM</h2><span>particle life</span></div>
         <p class="desc">Species pull and push each other through a secret matrix. Cells, chasers and
         pulsing membranes emerge from nothing but those forces.</p>
+        <div class="go">enter &rarr;</div>
+      </div>
+    </a>
+
+    <a class="card" href="primordium2.html" style="--c:#6ea8ff" data-kind="primordium2">
+      <div class="prev"><canvas></canvas><div class="tag">forces &middot; gpu</div></div>
+      <div class="body">
+        <div class="nm"><h2>PRIMORDIUM II</h2><span>gpu particle life</span></div>
+        <p class="desc">The original law reborn on the GPU: a hundred thousand particles surf
+        species-scented fields, condensing into storms, membranes and living tissue.</p>
         <div class="go">enter &rarr;</div>
       </div>
     </a>
@@ -112,9 +123,9 @@
   </main>
 
   <footer>
-    <b>Four single HTML files.</b> Real-time simulations &mdash; particle physics, agents on diffusing scent
-    fields, and topological boids &mdash; running live in your browser. No libraries, no network, no assets.
-    Built with Claude.
+    <b>Five single HTML files.</b> Real-time simulations &mdash; particle physics (on CPU and GPU), agents
+    on diffusing scent fields, and topological boids &mdash; running live in your browser. No libraries,
+    no network, no assets. Built with Claude.
   </footer>
 </div>
 
@@ -136,8 +147,14 @@ function setup(card){
     P=[];E={};
     if(kind==="primordium"){
       E.cols=["#39e0c8","#ff5ea6","#ffd24a"];
-      E.M=[[0.7,-0.6,0.4],[0.4,0.7,-0.6],[-0.6,0.4,0.7]];
+      E.M=[[0.7,-0.6,0.4],[0.4,0.7,-0.6],[-0.6,0.4,0.7]];E.rad=2.4;E.fade=0.22;
       for(let i=0;i<64;i++)P.push({x:Math.random()*w,y:Math.random()*h,vx:0,vy:0,t:i%3});
+    }else if(kind==="primordium2"){
+      E.cols=["#6ea8ff","#39e0c8","#ff5ea6","#ffd24a"];
+      E.M=[];for(let i=0;i<4;i++){E.M.push([]);for(let j=0;j<4;j++)
+        E.M[i].push(j===(i+1)%4?0.9:i===j?0.3:-0.4);}
+      E.rad=1.5;E.fade=0.10;
+      for(let i=0;i<170;i++)P.push({x:Math.random()*w,y:Math.random()*h,vx:0,vy:0,t:i%4});
     }else if(kind==="mycelia"){
       for(let i=0;i<16;i++)P.push({x:Math.random()*w,y:Math.random()*h,a:Math.random()*TAU});
     }else if(kind==="formica"){
@@ -150,8 +167,8 @@ function setup(card){
   }
   function fade(al){ctx.globalCompositeOperation="source-over";ctx.fillStyle="rgba(5,6,10,"+al+")";ctx.fillRect(0,0,w,h);}
   function step(){
-    if(kind==="primordium"){
-      const R=58;
+    if(kind==="primordium"||kind==="primordium2"){
+      const R=kind==="primordium2"?44:58;
       for(let i=0;i<P.length;i++){const a=P[i];let fx=0,fy=0;
         for(let j=0;j<P.length;j++){if(i===j)continue;const b=P[j];let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
           if(d>0&&d<R){let f;if(d<10)f=-1.2;else f=E.M[a.t][b.t]*(1-d/R);fx+=dx/d*f;fy+=dy/d*f;}}
@@ -178,9 +195,9 @@ function setup(card){
     }
   }
   function draw(){
-    if(kind==="primordium"){
-      fade(0.22);ctx.globalCompositeOperation="lighter";
-      for(const a of P){ctx.fillStyle=E.cols[a.t];ctx.beginPath();ctx.arc(a.x,a.y,2.4,0,TAU);ctx.fill();}
+    if(kind==="primordium"||kind==="primordium2"){
+      fade(E.fade);ctx.globalCompositeOperation="lighter";
+      for(const a of P){ctx.fillStyle=E.cols[a.t];ctx.beginPath();ctx.arc(a.x,a.y,E.rad,0,TAU);ctx.fill();}
     }else if(kind==="mycelia"){
       fade(0.045);ctx.globalCompositeOperation="lighter";ctx.fillStyle=acc;
       for(const c of P){ctx.beginPath();ctx.arc(c.x,c.y,1.7,0,TAU);ctx.fill();}
