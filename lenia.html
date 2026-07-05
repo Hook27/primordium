@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Lenia · continuous life</title>
+<style>
+  :root{--g:#96e85a}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#05060a;color:#cfe;
+    font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
+  #c{position:fixed;inset:0;display:block;touch-action:none;width:100%;height:100%}
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(125% 125% at 50% 45%,transparent 52%,#000 100%)}
+  #ui{position:fixed;top:12px;left:12px;width:266px;max-height:calc(100% - 24px);overflow:auto;
+    background:rgba(10,14,9,.72);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+    border:1px solid rgba(150,232,90,.20);border-radius:14px;padding:9px 12px;
+    box-shadow:0 12px 44px rgba(0,0,0,.55);transition:transform .25s;z-index:4}
+  #ui.hide{transform:translateX(-290px)}
+  #ui::-webkit-scrollbar{width:6px}#ui::-webkit-scrollbar-thumb{background:#28401f;border-radius:3px}
+  h1{font-size:13px;letter-spacing:2px;color:var(--g);font-weight:700}
+  .sub{font-size:9px;opacity:.55;margin:2px 0 5px;line-height:1.4}
+  .sub span{cursor:pointer;color:var(--g)}
+  .row{display:flex;justify-content:space-between;align-items:baseline;margin:5px 0 1px;font-size:10px;opacity:.82}
+  .row b{color:#fff;font-weight:600;opacity:.92;font-size:10px}
+  input[type=range]{width:100%;height:4px;-webkit-appearance:none;appearance:none;
+    background:#22331b;border-radius:3px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;
+    background:var(--g);cursor:pointer;box-shadow:0 0 9px var(--g)}
+  input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;
+    background:var(--g);cursor:pointer;box-shadow:0 0 9px var(--g)}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}
+  button{font-family:inherit;font-size:10px;color:#e6f5d8;background:#18240f;
+    border:1px solid rgba(150,232,90,.25);border-radius:7px;padding:5px 4px;cursor:pointer;transition:.15s}
+  button:hover{background:#22331b;border-color:var(--g)}
+  button:active{transform:translateY(1px)}
+  .pri{background:linear-gradient(180deg,#4f9a2a,#35671d);border-color:#aef77a;color:#f2ffe6;font-weight:600}
+  .pre{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+  .pre button{flex:1 1 30%;padding:4px 4px;font-size:10px}
+  .mini{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:5px}
+  .mini button{padding:5px 3px;font-size:10px}
+  .act{background:#417f24;border-color:#aef77a;color:#f2ffe6}
+  .seed{display:flex;gap:5px;margin-top:6px;align-items:center;font-size:10px;opacity:.85}
+  .seed input{flex:1;min-width:0;background:#0e1509;border:1px solid rgba(150,232,90,.22);
+    color:#d6f5b8;border-radius:6px;padding:4px 6px;font-family:inherit;font-size:10px}
+  .seed button{padding:4px 8px;font-size:10px}
+  .lbl{font-size:9px;opacity:.5;margin-top:7px;text-transform:uppercase;letter-spacing:1.5px}
+  #tog{position:fixed;top:12px;left:12px;z-index:5;width:36px;height:36px;border-radius:11px;
+    font-size:18px;line-height:1;display:none;background:rgba(10,14,9,.8)}
+  #hud{position:fixed;right:13px;bottom:11px;font-size:11px;opacity:.45;text-align:right;pointer-events:none}
+  #hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);font-size:12.5px;
+    color:var(--g);opacity:.92;pointer-events:none;transition:opacity 1.4s;text-shadow:0 0 14px #000}
+  #about,#fb{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;
+    padding:18px;background:rgba(2,4,8,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #about.show,#fb.show{display:flex}
+  #about .card,#fb .card{max-width:432px;max-height:88%;overflow:auto;background:rgba(12,17,9,.97);
+    border:1px solid rgba(150,232,90,.3);border-radius:16px;padding:22px 24px;font-size:13px;
+    line-height:1.5;box-shadow:0 22px 72px rgba(0,0,0,.7)}
+  #about h2,#fb h2{color:var(--g);letter-spacing:3px;font-size:18px;margin-bottom:10px}
+  #about h3{color:#fff;font-size:13px;margin:15px 0 5px;opacity:.95}
+  #about p,#fb p{opacity:.82;margin:7px 0}
+  #about ul{margin:6px 0 6px 18px;opacity:.82}#about li{margin:4px 0}
+  #about code{background:#101a08;border:1px solid #22331b;border-radius:5px;padding:1px 5px;color:#c4f79a}
+  #about .cr{opacity:.5;font-size:11px;margin-top:16px}
+  #about button{margin-top:14px;width:100%;padding:10px}
+  #fb a{color:var(--g)}
+  #home{position:fixed;top:12px;right:12px;z-index:6;font-family:inherit;font-size:11px;font-weight:600;
+    letter-spacing:1.5px;text-decoration:none;color:var(--g);opacity:.55;
+    background:rgba(8,9,14,.6);border:1px solid rgba(255,255,255,.14);
+    border-radius:9px;padding:5px 10px;transition:opacity .15s,background .15s}
+  #home:hover{opacity:1;background:rgba(8,9,14,.85)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<a id="home" href="index.html" title="back to the collection">&lsaquo; Primordia</a>
+<button id="tog" title="show panel">&#9776;</button>
+<div id="ui">
+  <h1>LENIA</h1>
+  <div class="sub">Continuous life: a field, a ring, a bell curve. Hit <b>Randomize</b> for a new rule of growth. <span id="x">[hide]</span> <span id="ab">[about]</span></div>
+  <div id="ctrls"></div>
+  <div class="btns">
+    <button class="pri" id="bRand">&#9889; Randomize</button>
+    <button id="bReset">&#8635; Reseed</button>
+    <button id="bPause">&#10073;&#10073; Pause</button>
+    <button id="bMouse">&#9998; Draw</button>
+    <button id="bAud" style="grid-column:1/3">&#128263; Audio</button>
+  </div>
+  <div class="pre">
+    <button data-p="orbium" title="The classic Lenia niche: a narrow bell curve at low density. Blobs condense into gliding, pulsing micro-organisms.">Orbium</button>
+    <button data-p="coral" title="A wide, generous growth zone: matter spreads in branching, labyrinthine reefs that slowly fill the dish.">Coral</button>
+    <button data-p="mitosis" title="A mid-width niche where blobs breathe, split in two and drift apart, like cells dividing forever.">Mitosis</button>
+    <button data-p="storm" title="A broad niche at high density: the whole field boils in waves that never settle.">Storm</button>
+    <button data-p="random" title="Rolls a brand-new random rule from a fresh seed, biased toward the fertile region of parameter space (same as Randomize, key R).">Wild</button>
+  </div>
+  <div class="mini">
+    <button id="bMut" title="Nudges the growth rule by a small random amount, keeping the world's character but shifting its behaviour (key M).">&#9883; Mutate</button>
+    <button id="bEvo" title="Keeps mutating a little every few seconds, so the rule of life itself slowly drifts. Click again to stop (key E).">&#8734; Evolve</button>
+    <button id="bPal" title="Cycles the colour scheme (abyss, fire, ice, candy, mono). Changes only the look, not the behaviour (key P).">&#127912; Palette</button>
+  </div>
+  <div class="btns" style="margin-top:6px">
+    <button id="bRng" title="Roll fresh random values for radius, speed and glow. Keeps the current rule of growth.">&#127922; Settings</button>
+    <button id="bDef" title="Reset all sliders back to their default starting values.">&#8634; Defaults</button>
+    <button id="bSnap" style="grid-column:1/3" title="Save the current frame as a PNG image (just the artwork, no panel). Key S.">&#128247; Save PNG</button>
+  </div>
+  <div class="seed">seed <input id="seedIn" spellcheck="false" title="copy or type a seed, then Load"><button id="bSeed">Load</button></div>
+  <div class="lbl" style="margin-top:9px">keys &middot; space r m e p a n h</div>
+</div>
+<div id="about"><div class="card">
+  <h2>LENIA</h2>
+  <p><b>Lenia</b> (Bert Wang-Chak Chan, 2018) is Conway's Game of Life made <i>continuous</i>. There
+  are no particles here and no cells that are simply alive or dead &mdash; only a smooth field of
+  matter between 0 and 1, and one rule applied everywhere, forever:</p>
+  <ul>
+    <li>Each point looks at its neighbourhood through a <b>ring-shaped kernel</b> &mdash; a soft
+    doughnut of attention with radius <code>R</code>.</li>
+    <li>The density it sees goes through a <b>bell curve</b>: close to the ideal density
+    <code>&mu;</code> means growth, too crowded or too lonely means decay. The width
+    <code>&sigma;</code> is how picky life is.</li>
+    <li>The field rises and falls by that verdict, a little each tick.</li>
+  </ul>
+  <p>That is the whole universe. Everything you see &mdash; gliding organisms, breathing rings,
+  dividing blobs, coral reefs &mdash; is a <i>standing wave</i> that discovered how to keep itself
+  alive under one bell curve.</p>
+  <h3>The knobs</h3>
+  <p><b>radius</b> is the size of the ring (and so of the creatures); <b>rings</b> stacks up to three
+  concentric shells with different weights, which changes the anatomy of what can exist;
+  <b>growth</b> and <b>width</b> are &mu; and &sigma;, the centre and tolerance of the bell curve
+  &mdash; the true genome of this world; <b>speed</b> is the time step. If everything dies out or
+  freezes solid, the dish quietly reseeds itself with fresh noise.</p>
+  <h3>Make it yours</h3>
+  <p>Every rule is generated from a 32-bit <b>seed</b>, biased toward the fertile region of parameter
+  space: copy it to save a universe or paste a friend's, then <b>Load</b>. <b>Mutate</b> nudges the
+  rule; <b>Evolve</b> keeps nudging it so the law of life itself drifts. Draw matter with the pointer
+  (or flip to erase) &mdash; it's a petri dish.</p>
+  <h3>Sound</h3>
+  <p>Toggle <b>Audio</b> (key <code>a</code>) and the dish conducts a generative ambient piece: a
+  breathing drone and a pentatonic melody whose tempo follows the field's growth activity. All
+  synthesised live with the Web Audio API.</p>
+  <h3>Keyboard</h3>
+  <p><code>space</code> pause &middot; <code>r</code> randomize &middot; <code>m</code> mutate &middot;
+  <code>e</code> evolve &middot; <code>p</code> palette &middot; <code>a</code> sound &middot;
+  <code>n</code> reseed &middot; <code>h</code> hide panel &middot; <code>i</code> this panel</p>
+  <p class="cr">A single self-contained HTML file &middot; no libraries, no network, no assets.
+  WebGL2: the convolution runs in a fragment shader over a polar-sampled kernel, rendered with HDR
+  bloom. Lenia was discovered by Bert Wang-Chak Chan. Built with Claude.</p>
+  <button id="aClose">close</button>
+</div></div>
+<div id="fb"><div class="card">
+  <h2>LENIA</h2>
+  <p id="fbMsg">This world needs <b>WebGL2</b> with float-texture rendering, which your browser or GPU
+  doesn't offer.</p>
+  <p>Try the rest of the cabinet instead: <a href="index.html">back to Primordia &rarr;</a></p>
+</div></div>
+<div id="hud"></div>
+<div id="hint">draw on the dish with your pointer</div>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const cv=$("c");
+const DPR=Math.min(1.6,window.devicePixelRatio||1);
+const gl=cv.getContext("webgl2",{alpha:false,antialias:false,depth:false,stencil:false,
+  preserveDrawingBuffer:true,powerPreference:"high-performance"});
+function fatal(msg){if(msg)$("fbMsg").innerHTML=msg;$("fb").classList.add("show");$("ui").style.display="none";throw new Error("fatal");}
+if(!gl)fatal();
+if(!gl.getExtension("EXT_color_buffer_float"))fatal();
+const F32L=!!gl.getExtension("OES_texture_float_linear");
+const SFMT=F32L?gl.RG32F:gl.RG16F;      // state must be linearly filterable
+
+// ---- state ----
+const P={R:13,mu:0.15,sg:0.016,dt:0.10,rings:1,glow:1.2,paused:0};
+const DEF=Object.assign({},P);
+let B=[1];                               // kernel shell heights (the anatomy)
+let W,H,fw,fh;
+const mouse={x:0,y:0,down:false,r:70,mode:1};   // r in screen px; mode 1 draw, -1 erase
+
+// ---- shaders ----
+const VQ=`#version 300 es
+out vec2 v;
+void main(){vec2 p=vec2(float(gl_VertexID<<1&2),float(gl_VertexID&2));v=p;gl_Position=vec4(p*2.-1.,0.,1.);}`;
+const F_UPD=`#version 300 es
+precision highp float;
+uniform sampler2D uState,uKern;
+uniform int uNT;uniform vec2 uFT,uFS;
+uniform float uMu,uSg,uDt;uniform vec4 uMouse;
+in vec2 v;out vec4 o;
+void main(){
+  float A=texture(uState,v).r,U=0.;
+  for(int i=0;i<2048;i++){
+    if(i>=uNT)break;
+    vec4 t=texelFetch(uKern,ivec2(i,0),0);
+    U+=texture(uState,v+t.xy*uFT).r*t.z;
+  }
+  float d=(U-uMu)/uSg;
+  float G=2.*exp(-.5*d*d)-1.;
+  float A2=A+uDt*G;
+  if(uMouse.w!=0.){
+    vec2 dm=(v-uMouse.xy)*uFS;
+    A2+=uMouse.w*exp(-dot(dm,dm)/(uMouse.z*uMouse.z));
+  }
+  o=vec4(clamp(A2,0.,1.),G,0.,1.);}`;
+const F_SHOW=`#version 300 es
+precision highp float;in vec2 v;
+uniform sampler2D uState,uGrad;uniform float uB;uniform vec2 uFT;
+out vec4 o;
+vec4 cub(float x){vec4 n=vec4(1.,2.,3.,4.)-x;vec4 s=n*n*n;
+  float a=s.x,b=s.y-4.*s.x,c=s.z-4.*s.y+6.*s.x,d=6.-a-b-c;return vec4(a,b,c,d)/6.;}
+vec2 sampBC(vec2 uv){                   // bicubic B-spline: silky upscaling of the field
+  vec2 tc=uv/uFT-.5,f=fract(tc);tc-=f;
+  vec4 xc=cub(f.x),yc=cub(f.y);
+  vec4 cs=tc.xxyy+vec2(-.5,1.5).xyxy;
+  vec4 s=vec4(xc.xz+xc.yw,yc.xz+yc.yw);
+  vec4 off=(cs+vec4(xc.yw,yc.yw)/s)*uFT.xxyy;
+  vec2 a=texture(uState,off.xz).rg,b=texture(uState,off.yz).rg,
+       c=texture(uState,off.xw).rg,d=texture(uState,off.yw).rg;
+  float sx=s.x/(s.x+s.y),sy=s.z/(s.z+s.w);
+  return mix(mix(d,c,sx),mix(b,a,sx),sy);
+}
+void main(){
+  vec2 s=sampBC(v);
+  vec3 c=texture(uGrad,vec2(s.r,.5)).rgb;
+  c*=uB*(1.+.55*s.g*s.r);         // growing matter glows a little hotter
+  o=vec4(c,1.);}`;
+const F_COPY=`#version 300 es
+precision highp float;in vec2 v;uniform sampler2D uT;uniform float uF;out vec4 o;
+void main(){o=texture(uT,v)*uF;}`;
+const F_BLUR1=`#version 300 es
+precision highp float;in vec2 v;uniform sampler2D uT;uniform vec2 uDir;uniform float uW[5];out vec4 o;
+void main(){vec4 a=texture(uT,v)*uW[0];
+for(int i=1;i<5;i++){vec2 d=uDir*float(i);a+=(texture(uT,v+d)+texture(uT,v-d))*uW[i];}o=a;}`;
+const F_COMP=`#version 300 es
+precision highp float;in vec2 v;
+uniform sampler2D uT,uB4,uB8;uniform float uGlow;uniform vec4 uMouse;uniform vec2 uRes;
+out vec4 o;
+void main(){
+  vec3 c=texture(uT,v).rgb;
+  c+=texture(uB4,v).rgb*uGlow*.4+texture(uB8,v).rgb*uGlow*.28;
+  c=1.-exp(-c*1.05);
+  c=pow(c,vec3(.91));
+  if(uMouse.w!=0.){
+    float d=distance(v*uRes,uMouse.xy);
+    float ring=exp(-pow((d-uMouse.z)/(uMouse.z*.22),2.))*.2;
+    c+=(uMouse.w>0.?vec3(.62,1.,.45):vec3(1.,.5,.4))*ring;}
+  o=vec4(c,1.);}`;
+
+// ---- GL helpers ----
+function sh(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s)+"\n"+src);return s;}
+function prog(vs,fs){const p=gl.createProgram();gl.attachShader(p,sh(gl.VERTEX_SHADER,vs));
+  gl.attachShader(p,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(p));p._u={};return p;}
+function U(p,n){let l=p._u[n];if(l===undefined){l=gl.getUniformLocation(p,n);p._u[n]=l;}return l;}
+function mkTex(w,h,ifmt,filt,wrap){const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.texStorage2D(gl.TEXTURE_2D,1,ifmt,w,h);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,filt);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,filt);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,wrap);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,wrap);
+  return t;}
+function mkFbo(t){const f=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);return f;}
+function bind(unit,t){gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,t);}
+function quad(){gl.drawArrays(gl.TRIANGLES,0,3);}
+function gauss(sig){const w=[];let s=0;for(let i=0;i<5;i++){const g=Math.exp(-i*i/(2*sig*sig));w.push(g);s+=i?2*g:g;}
+  return w.map(x=>x/s);}
+const pUpd=prog(VQ,F_UPD),pShow=prog(VQ,F_SHOW),pCopy=prog(VQ,F_COPY),
+      pBlur1=prog(VQ,F_BLUR1),pComp=prog(VQ,F_COMP);
+
+// ---- resources ----
+let state=[],fboState=[],si=0,kern=null,nTaps=0,grad=null;
+let scene=null,fboScene=null,b4=[],b8=[],fboB4=[],fboB8=[],w4,h4,w8,h8;
+function mkState(){
+  state.forEach(t=>gl.deleteTexture(t));fboState.forEach(f=>gl.deleteFramebuffer(f));
+  state=[];fboState=[];
+  for(let i=0;i<2;i++){const t=mkTex(fw,fh,SFMT,gl.LINEAR,gl.REPEAT);state.push(t);fboState.push(mkFbo(t));}
+  spawn();
+}
+// Orbium bicaudatus — the classic Lenia glider (Bert Chan; R13 T10 m.15 s.015 b[1])
+const ORB=[[0,0,0,0,0,0,0.1,0.14,0.1,0,0,0.03,0.03,0,0,0.3,0,0,0,0],[0,0,0,0,0,0.08,0.24,0.3,0.3,0.18,0.14,0.15,0.16,0.15,0.09,0.2,0,0,0,0],[0,0,0,0,0,0.15,0.34,0.44,0.46,0.38,0.18,0.14,0.11,0.13,0.19,0.18,0.45,0,0,0],[0,0,0,0,0.06,0.13,0.39,0.5,0.5,0.37,0.06,0,0,0,0.02,0.16,0.68,0,0,0],[0,0,0,0.11,0.17,0.17,0.33,0.4,0.38,0.28,0.14,0,0,0,0,0,0.18,0.42,0,0],[0,0,0.09,0.18,0.13,0.06,0.08,0.26,0.32,0.32,0.27,0,0,0,0,0,0,0.82,0,0],[0.27,0,0.16,0.12,0,0,0,0.25,0.38,0.44,0.45,0.34,0,0,0,0,0,0.22,0.17,0],[0,0.07,0.2,0.02,0,0,0,0.31,0.48,0.57,0.6,0.57,0,0,0,0,0,0,0.49,0],[0,0.59,0.19,0,0,0,0,0.2,0.57,0.69,0.76,0.76,0.49,0,0,0,0,0,0.36,0],[0,0.58,0.19,0,0,0,0,0,0.67,0.83,0.9,0.92,0.87,0.12,0,0,0,0,0.22,0.07],[0,0,0.46,0,0,0,0,0,0.7,0.93,1,1,1,0.61,0,0,0,0,0.18,0.11],[0,0,0.82,0,0,0,0,0,0.47,1,1,0.98,1,0.96,0.27,0,0,0,0.19,0.1],[0,0,0.46,0,0,0,0,0,0.25,1,1,0.84,0.92,0.97,0.54,0.14,0.04,0.1,0.21,0.05],[0,0,0,0.4,0,0,0,0,0.09,0.8,1,0.82,0.8,0.85,0.63,0.31,0.18,0.19,0.2,0.01],[0,0,0,0.36,0.1,0,0,0,0.05,0.54,0.86,0.79,0.74,0.72,0.6,0.39,0.28,0.24,0.13,0],[0,0,0,0.01,0.3,0.07,0,0,0.08,0.36,0.64,0.7,0.64,0.6,0.51,0.39,0.29,0.19,0.04,0],[0,0,0,0,0.1,0.24,0.14,0.1,0.15,0.29,0.45,0.53,0.52,0.46,0.4,0.31,0.21,0.08,0,0],[0,0,0,0,0,0.08,0.21,0.21,0.22,0.29,0.36,0.39,0.37,0.33,0.26,0.18,0.09,0,0,0],[0,0,0,0,0,0,0.03,0.13,0.19,0.22,0.24,0.24,0.23,0.18,0.13,0.05,0,0,0,0],[0,0,0,0,0,0,0,0,0.02,0.06,0.08,0.09,0.07,0.05,0.01,0,0,0,0,0]];
+let spawnMode="noise";                   // "noise" | "orbium"
+function stampOrb(d,cx,cy,rot,mir){      // place one (rotated/mirrored, R-scaled) orbium
+  const s=P.R/13,N=Math.round(20*s);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    let u=Math.min(19,(x/s)|0),w=Math.min(19,(y/s)|0);
+    if(mir)u=19-u;
+    let px,py;
+    if(rot===0){px=u;py=w;}else if(rot===1){px=19-w;py=u;}
+    else if(rot===2){px=19-u;py=19-w;}else{px=w;py=19-u;}
+    const val=ORB[py][px];
+    if(val>0){const X=(cx+x)%fw,Y=(cy+y)%fh,i=(Y*fw+X)*2;d[i]=Math.max(d[i],val);}
+  }
+}
+function spawn(){
+  const d=new Float32Array(fw*fh*2);
+  if(spawnMode==="orbium"){
+    const nO=Math.min(12,Math.max(3,Math.round(fw*fh/(P.R*P.R*46))));
+    for(let b=0;b<nO;b++)stampOrb(d,(Math.random()*fw)|0,(Math.random()*fh)|0,
+      (Math.random()*4)|0,Math.random()<0.5);
+  }else{                                 // seed the dish sparsely with soft blobs of noise
+    const nB=Math.max(4,Math.round(fw*fh/(P.R*P.R*38)));
+    for(let b=0;b<nB;b++){
+      const cx=Math.random()*fw,cy=Math.random()*fh,rad=P.R*(0.8+Math.random()*1.4),amp=0.55+Math.random()*0.45;
+      const r0=Math.ceil(rad);
+      for(let dy=-r0;dy<=r0;dy++)for(let dx=-r0;dx<=r0;dx++){
+        const q=(dx*dx+dy*dy)/(rad*rad);if(q>1)continue;
+        const x=((cx+dx|0)+fw)%fw,y=((cy+dy|0)+fh)%fh,i=(y*fw+x)*2;
+        d[i]=Math.min(1,d[i]+amp*Math.random()*(1-q));
+      }
+    }
+  }
+  gl.bindTexture(gl.TEXTURE_2D,state[si]);
+  gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,fw,fh,gl.RG,gl.FLOAT,d);
+}
+function buildKernel(){                  // polar-sampled ring kernel, normalised to sum 1
+  const taps=[];const R=P.R,nR=Math.max(8,Math.round(R));
+  for(let i=0;i<nR;i++){
+    const r=(i+0.5)*R/nR,u=r/R;
+    const seg=Math.min(B.length-1,Math.floor(u*B.length)),vfr=u*B.length-seg;
+    const shell=B[seg]*Math.exp(-Math.pow((vfr-0.5)/0.15,2)/2);   // Gaussian ring, peak 1 at vfr=.5 (as in Chan's reference)
+    if(shell<1e-4)continue;
+    const n=Math.max(6,Math.round(2*Math.PI*r/1.3)),a0=Math.random()*6.283;
+    const w=shell*2*Math.PI*r*(R/nR)/n;
+    for(let j=0;j<n;j++){const a=a0+j/n*2*Math.PI;taps.push(r*Math.cos(a),r*Math.sin(a),w,0);}
+  }
+  let s=0;for(let i=2;i<taps.length;i+=4)s+=taps[i];
+  for(let i=2;i<taps.length;i+=4)taps[i]/=s;
+  nTaps=taps.length/4;
+  if(kern)gl.deleteTexture(kern);
+  kern=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,kern);
+  gl.texStorage2D(gl.TEXTURE_2D,1,gl.RGBA32F,Math.max(1,nTaps),1);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+  gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,nTaps,1,gl.RGBA,gl.FLOAT,new Float32Array(taps));
+}
+function mkScreen(){
+  if(scene)gl.deleteTexture(scene);if(fboScene)gl.deleteFramebuffer(fboScene);
+  b4.forEach(t=>gl.deleteTexture(t));b8.forEach(t=>gl.deleteTexture(t));
+  fboB4.forEach(f=>gl.deleteFramebuffer(f));fboB8.forEach(f=>gl.deleteFramebuffer(f));
+  b4=[];b8=[];fboB4=[];fboB8=[];
+  scene=mkTex(W,H,gl.RGBA16F,gl.LINEAR,gl.CLAMP_TO_EDGE);fboScene=mkFbo(scene);
+  w4=Math.max(2,W>>2);h4=Math.max(2,H>>2);w8=Math.max(2,W>>3);h8=Math.max(2,H>>3);
+  for(let i=0;i<2;i++){
+    b4.push(mkTex(w4,h4,gl.RGBA16F,gl.LINEAR,gl.CLAMP_TO_EDGE));fboB4.push(mkFbo(b4[i]));
+    b8.push(mkTex(w8,h8,gl.RGBA16F,gl.LINEAR,gl.CLAMP_TO_EDGE));fboB8.push(mkFbo(b8[i]));}
+}
+function resize(){
+  W=Math.max(2,Math.round(innerWidth*DPR));H=Math.max(2,Math.round(innerHeight*DPR));
+  cv.width=W;cv.height=H;
+  fw=Math.round(W/4);fh=Math.round(H/4);
+  const sc=Math.min(1,420/Math.max(fw,fh));
+  fw=Math.max(96,Math.round(fw*sc));fh=Math.max(72,Math.round(fh*sc));
+  mkState();mkScreen();
+}
+addEventListener("resize",resize);
+
+// ---- palettes: multi-stop gradient textures ----
+const pals=[
+  [[0,1,4],[5,28,26],[10,84,64],[70,214,144],[236,255,246]],        // abyss
+  [[2,0,2],[44,7,6],[172,44,14],[255,168,52],[255,246,224]],        // fire
+  [[0,1,5],[7,18,56],[20,92,178],[118,208,255],[240,252,255]],      // ice
+  [[3,0,4],[44,10,66],[158,32,136],[255,118,190],[255,238,246]],    // candy
+  [[1,2,1],[18,22,18],[70,80,70],[168,180,168],[250,252,250]]       // mono
+];
+let pal=0;
+function buildGrad(){
+  const st=pals[pal],d=new Uint8Array(256*4);
+  for(let i=0;i<256;i++){
+    const t=Math.pow(i/255,1.35)*(st.length-1),j=Math.min(st.length-2,t|0),f=t-j;
+    for(let c=0;c<3;c++)d[i*4+c]=st[j][c]+(st[j+1][c]-st[j][c])*f;
+    d[i*4+3]=255;
+  }
+  if(grad)gl.deleteTexture(grad);
+  grad=mkTex(256,1,gl.RGBA8,gl.LINEAR,gl.CLAMP_TO_EDGE);
+  gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,256,1,gl.RGBA,gl.UNSIGNED_BYTE,d);
+}
+
+// ---- seeds: the rule of growth is the genome ----
+let seed=0;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function showSeed(){$("seedIn").value=seed.toString(36);}
+function genSeed(s){seed=s>>>0;const r=mulberry32(seed||1);
+  const mu=0.13+0.17*r(),sg=mu*(0.15+0.19*r());          // fertile band: sigma scales with mu
+  const q=r(),nB2=q<0.55?1:q<0.85?2:3;B=[];              // mostly single-ring: bigger creatures
+  for(let i=0;i<nB2;i++)B.push(i===0?1:0.25+0.75*r());
+  applySlider(rngs.mu.d,+mu.toFixed(3));
+  applySlider(rngs.sg.d,+sg.toFixed(4));
+  applySlider(rngs.R.d,10+Math.round(10*r()));
+  applySlider(rngs.rings.d,nB2);
+  buildKernel();showSeed();
+}
+function randRule(){spawnMode="noise";genSeed((Math.random()*4294967296)>>>0);}
+function mutate(amt){
+  P.mu=Math.min(0.4,Math.max(0.05,P.mu+(Math.random()*2-1)*0.02*amt*4));
+  P.sg=Math.min(0.09,Math.max(0.006,P.sg*(1+(Math.random()*2-1)*0.25*amt*4)));
+  for(let i=1;i<B.length;i++)B[i]=Math.min(1,Math.max(0.1,B[i]+(Math.random()*2-1)*0.2*amt*4));
+  syncSlider("mu",P.mu);syncSlider("sg",P.sg);buildKernel();$("seedIn").value="custom";
+}
+
+// ---- sliders ----
+const defs=[
+  {k:"R",    t:"radius",mn:6,    mx:24,  st:1,    g:()=>P.R,    s:v=>{P.R=+v;buildKernel();},f:v=>v|0},
+  {k:"rings",t:"rings", mn:1,    mx:3,   st:1,    g:()=>P.rings,s:v=>{P.rings=+v;onRings();},f:v=>v|0},
+  {k:"mu",   t:"growth &mu;",mn:0.05,mx:0.4,st:0.002,g:()=>P.mu, s:v=>{P.mu=+v;},            f:v=>(+v).toFixed(3)},
+  {k:"sg",   t:"width &sigma;",mn:0.006,mx:0.09,st:0.001,g:()=>P.sg,s:v=>{P.sg=+v;},         f:v=>(+v).toFixed(3)},
+  {k:"dt",   t:"speed", mn:0.03, mx:0.3, st:0.01, g:()=>P.dt,   s:v=>{P.dt=+v;},             f:v=>(+v).toFixed(2)},
+  {k:"glow", t:"glow",  mn:0,    mx:3,   st:0.05, g:()=>P.glow, s:v=>{P.glow=+v;},           f:v=>(+v).toFixed(2)}
+];
+const rngs={},C=$("ctrls");
+defs.forEach(d=>{
+  const lab=document.createElement("div");lab.className="row";
+  const nm=document.createElement("span");nm.innerHTML=d.t;
+  const val=document.createElement("b");val.textContent=d.f(d.g());
+  const inp=document.createElement("input");inp.type="range";inp.min=d.mn;inp.max=d.mx;inp.step=d.st;inp.value=d.g();
+  inp.addEventListener("input",()=>{d.s(inp.value);val.textContent=d.f(d.g());});
+  lab.appendChild(nm);lab.appendChild(val);C.appendChild(lab);C.appendChild(inp);
+  rngs[d.k]={inp,val,d};
+});
+function applySlider(d,v){d.s(""+v);const r=rngs[d.k];r.inp.value=v;r.val.textContent=d.f(d.g());}
+function syncSlider(k,v){const r=rngs[k];r.inp.value=v;r.val.textContent=r.d.f(v);}
+function randSettings(){["R","dt","glow"].forEach(k=>{const d=rngs[k].d;
+  applySlider(d,Math.round((d.mn+Math.random()*(d.mx-d.mn))/d.st)*d.st);});}
+function resetSettings(){B=[1];defs.forEach(d=>applySlider(d,DEF[d.k]));}
+function onRings(){
+  while(B.length<P.rings)B.push(0.4+Math.random()*0.6);
+  B.length=P.rings;B[0]=1;buildKernel();
+}
+
+// ---- presets (tuned live; each is a region of the growth space) ----
+const PRESETS={
+  orbium: {R:13,rings:1,mu:0.15, sg:0.015, dt:0.10,B:[1],mode:"orbium"},
+  coral:  {R:13,rings:1,mu:0.26, sg:0.052, dt:0.10,B:[1],mode:"noise"},
+  mitosis:{R:13,rings:1,mu:0.205,sg:0.031, dt:0.10,B:[1],mode:"noise"},
+  storm:  {R:15,rings:2,mu:0.30, sg:0.058, dt:0.16,B:[1,0.55],mode:"noise"}
+};
+function preset(p){
+  if(p==="random"){randRule();return;}
+  const q=PRESETS[p];if(!q)return;
+  B=q.B.slice();
+  applySlider(rngs.R.d,q.R);applySlider(rngs.rings.d,q.rings);
+  applySlider(rngs.mu.d,q.mu);applySlider(rngs.sg.d,q.sg);applySlider(rngs.dt.d,q.dt);
+  B=q.B.slice();buildKernel();spawnMode=q.mode;spawn();$("seedIn").value=p;
+}
+
+// ---- simulation & render ----
+function sim(){
+  const dst=1^si;
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fboState[dst]);gl.viewport(0,0,fw,fh);
+  gl.useProgram(pUpd);
+  gl.uniform1i(U(pUpd,"uState"),0);bind(0,state[si]);
+  gl.uniform1i(U(pUpd,"uKern"),1);bind(1,kern);
+  gl.uniform1i(U(pUpd,"uNT"),nTaps);
+  gl.uniform2f(U(pUpd,"uFT"),1/fw,1/fh);gl.uniform2f(U(pUpd,"uFS"),fw,fh);
+  gl.uniform1f(U(pUpd,"uMu"),P.mu);gl.uniform1f(U(pUpd,"uSg"),P.sg);gl.uniform1f(U(pUpd,"uDt"),P.dt);
+  gl.uniform4f(U(pUpd,"uMouse"),mouse.x/innerWidth,mouse.y/innerHeight,
+    P.R*0.9,mouse.down?mouse.mode*0.9*P.dt*10:0);
+  quad();
+  si=dst;
+}
+function render(){
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fboScene);gl.viewport(0,0,W,H);
+  gl.useProgram(pShow);
+  gl.uniform1i(U(pShow,"uState"),0);bind(0,state[si]);
+  gl.uniform1i(U(pShow,"uGrad"),1);bind(1,grad);
+  gl.uniform1f(U(pShow,"uB"),1.35);
+  gl.uniform2f(U(pShow,"uFT"),1/fw,1/fh);
+  quad();
+  gl.useProgram(pCopy);gl.uniform1f(U(pCopy,"uF"),1);gl.uniform1i(U(pCopy,"uT"),0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fboB4[0]);gl.viewport(0,0,w4,h4);bind(0,scene);quad();
+  const w=gauss(2.2);
+  gl.useProgram(pBlur1);gl.uniform1fv(U(pBlur1,"uW"),w);gl.uniform1i(U(pBlur1,"uT"),0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fboB4[1]);bind(0,b4[0]);gl.uniform2f(U(pBlur1,"uDir"),1.5/w4,0);quad();
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fboB4[0]);bind(0,b4[1]);gl.uniform2f(U(pBlur1,"uDir"),0,1.5/h4);quad();
+  gl.useProgram(pCopy);gl.uniform1f(U(pCopy,"uF"),1);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fboB8[0]);gl.viewport(0,0,w8,h8);bind(0,b4[0]);quad();
+  gl.useProgram(pBlur1);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fboB8[1]);bind(0,b8[0]);gl.uniform2f(U(pBlur1,"uDir"),1.5/w8,0);quad();
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fboB8[0]);bind(0,b8[1]);gl.uniform2f(U(pBlur1,"uDir"),0,1.5/h8);quad();
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,W,H);
+  gl.useProgram(pComp);
+  gl.uniform1i(U(pComp,"uT"),0);bind(0,scene);
+  gl.uniform1i(U(pComp,"uB4"),1);bind(1,b4[0]);
+  gl.uniform1i(U(pComp,"uB8"),2);bind(2,b8[0]);
+  gl.uniform1f(U(pComp,"uGlow"),P.glow);
+  gl.uniform2f(U(pComp,"uRes"),W,H);
+  gl.uniform4f(U(pComp,"uMouse"),mouse.x*DPR,(innerHeight-mouse.y)*DPR,P.R*0.9*W/fw,
+    mouse.down?mouse.mode:0);
+  quad();
+}
+
+// ---- life signs: mass & activity, read back sparsely ----
+let rowBuf=null;
+function lifeSigns(){                    // 3 rows across the dish
+  if(!rowBuf||rowBuf.length<fw*4)rowBuf=new Float32Array(fw*4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fboState[si]);
+  let mass=0,act=0,n=0;
+  for(const fy of [0.25,0.5,0.75]){
+    gl.readPixels(0,Math.floor(fh*fy),fw,1,gl.RGBA,gl.FLOAT,rowBuf);
+    for(let i=0;i<fw;i++){mass+=rowBuf[i*4];act+=Math.abs(rowBuf[i*4+1])*rowBuf[i*4];n++;}
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  return {mass:mass/n,act:act/n};
+}
+
+// ---- audio: growth conducts a generative ambient piece ----
+let actx=null,master,dFilt,dGain,send,notes=[],eSm=0,ePk=1,audioOn=0,lastNote=0,noteGap=1;
+function audioInit(){
+  actx=new (window.AudioContext||window.webkitAudioContext)();
+  master=actx.createGain();master.gain.value=0;master.connect(actx.destination);
+  const dl=actx.createDelay(1),fb=actx.createGain(),dlp=actx.createBiquadFilter();
+  dl.delayTime.value=0.45;fb.gain.value=0.42;dlp.type="lowpass";dlp.frequency.value=2000;
+  send=actx.createGain();send.gain.value=0.6;
+  send.connect(dl);dl.connect(dlp);dlp.connect(fb);fb.connect(dl);dl.connect(master);
+  dFilt=actx.createBiquadFilter();dFilt.type="lowpass";dFilt.frequency.value=400;dFilt.Q.value=3;
+  dGain=actx.createGain();dGain.gain.value=0.06;
+  dFilt.connect(dGain);dGain.connect(master);dGain.connect(send);
+  [55,82.5,110].forEach((f,i)=>{const o=actx.createOscillator();
+    o.type=i?"sawtooth":"triangle";o.frequency.value=f;o.detune.value=(i-1)*5;o.connect(dFilt);o.start();});
+  const lfo=actx.createOscillator(),lg=actx.createGain();
+  lfo.frequency.value=0.05;lg.gain.value=260;lfo.connect(lg);lg.connect(dFilt.frequency);lfo.start();
+  for(let o=0;o<4;o++)for(const s of [0,3,5,7,10])notes.push(110*Math.pow(2,(s+12*o)/12));
+}
+function note(L,now){
+  const f=notes[(Math.random()*Math.max(3,(L*notes.length)|0))|0];
+  const o=actx.createOscillator(),g=actx.createGain(),rel=2.5+Math.random()*2.5;
+  o.type="sine";o.frequency.value=f;o.connect(g);g.connect(master);g.connect(send);
+  g.gain.linearRampToValueAtTime(0.11,now+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0008,now+0.03+rel);
+  o.start(now);o.stop(now+rel+0.2);
+}
+function audioToggle(){
+  if(!actx)audioInit();
+  if(actx.state==="suspended")actx.resume();
+  audioOn^=1;
+  master.gain.setTargetAtTime(audioOn?0.5:0,actx.currentTime,0.4);
+  const b=$("bAud");b.classList.toggle("act",!!audioOn);b.innerHTML=audioOn?"&#128266; Audio":"&#128263; Audio";
+}
+
+// ---- loop ----
+const hud=$("hud");let last=performance.now(),fps=60,evo=0,evc=0,fr=0;
+function frame(t){
+  requestAnimationFrame(frame);
+  const ft=t-last;last=t;if(ft>0)fps+=(1000/ft-fps)*0.08;
+  if(!P.paused){sim();if(evo&&++evc>110){evc=0;mutate(0.07);}}
+  render();
+  fr++;
+  if(fr%30===0&&!P.paused){
+    const {mass,act}=lifeSigns();
+    if(mass<0.004||mass>0.985)spawn();   // extinction or total saturation: reseed the dish
+    eSm+=(act-eSm)*0.3;ePk=Math.max(ePk*0.99,eSm,1e-6);
+  }
+  if(audioOn&&actx){
+    const L=Math.min(1,eSm/ePk),now=actx.currentTime;
+    dFilt.frequency.setTargetAtTime(240+L*L*2400,now,0.25);
+    dGain.gain.setTargetAtTime(P.paused?0:0.045+0.05*L,now,0.3);
+    if(!P.paused&&now-lastNote>noteGap){lastNote=now;note(L,now);noteGap=(2.3-1.8*L)*(0.6+0.8*Math.random());}
+  }
+  hud.textContent=(fps|0)+" fps · "+fw+"×"+fh+" dish · μ "+P.mu.toFixed(3)+" σ "+P.sg.toFixed(3);
+}
+
+// ---- controls wiring ----
+$("bRand").onclick=()=>randRule();
+$("bReset").onclick=()=>spawn();
+$("bPause").onclick=function(){P.paused^=1;this.innerHTML=P.paused?"&#9654; Play":"&#10073;&#10073; Pause";};
+$("bMouse").onclick=function(){mouse.mode*=-1;this.innerHTML=mouse.mode>0?"&#9998; Draw":"&#9003; Erase";};
+document.querySelectorAll(".pre button").forEach(b=>b.onclick=()=>preset(b.dataset.p));
+$("bMut").onclick=()=>mutate(0.25);
+$("bEvo").onclick=function(){evo^=1;this.classList.toggle("act",!!evo);};
+$("bPal").onclick=()=>{pal=(pal+1)%pals.length;buildGrad();};
+$("bAud").onclick=audioToggle;
+$("bRng").onclick=randSettings;
+$("bDef").onclick=resetSettings;
+function snap(){const a=document.createElement("a"),
+  t=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,19).replace(/[-:]/g,"").replace("T","-");
+  a.download="lenia_"+($("seedIn").value||"shot")+"_"+t+".png";a.href=cv.toDataURL("image/png");a.click();}
+$("bSnap").onclick=snap;
+$("bSeed").onclick=()=>{const v=parseInt($("seedIn").value.trim(),36);if(!isNaN(v))genSeed(v);};
+$("seedIn").addEventListener("keydown",e=>{if(e.key==="Enter")$("bSeed").click();});
+addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT")return;
+  const c=e.key.toLowerCase();
+  if(c===" "){$("bPause").click();e.preventDefault();}
+  else if(c==="r")randRule();else if(c==="m")mutate(0.25);
+  else if(c==="e")$("bEvo").click();else if(c==="p")$("bPal").click();
+  else if(c==="n")spawn();else if(c==="a")audioToggle();else if(c==="s")snap();
+  else if(c==="i")$("about").classList.toggle("show");
+  else if(c==="h")($("ui").classList.contains("hide")?$("tog"):$("x")).click();
+});
+$("ab").onclick=()=>$("about").classList.add("show");
+$("aClose").onclick=()=>$("about").classList.remove("show");
+$("about").onclick=e=>{if(e.target===$("about"))$("about").classList.remove("show");};
+function hideUI(){$("ui").classList.add("hide");$("tog").style.display="block";}
+let hideT;function armHide(){clearTimeout(hideT);hideT=setTimeout(hideUI,15000);}
+["pointermove","pointerdown","input"].forEach(e=>$("ui").addEventListener(e,armHide));armHide();
+$("x").onclick=hideUI;
+$("tog").onclick=()=>{$("ui").classList.remove("hide");$("tog").style.display="none";armHide();};
+cv.addEventListener("pointerdown",e=>{mouse.down=true;mouse.x=e.clientX;mouse.y=e.clientY;$("hint").style.opacity=0;});
+cv.addEventListener("pointermove",e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
+addEventListener("pointerup",()=>{mouse.down=false;});
+
+// ---- boot ----
+try{
+  resize();buildGrad();randRule();
+}catch(err){fatal("Something went wrong while starting the GPU simulation: <code>"+err.message+"</code>");}
+setTimeout(()=>$("hint").style.opacity=0,6000);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
