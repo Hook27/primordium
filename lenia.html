@@ -452,7 +452,7 @@ function sim(){
   gl.uniform1i(U(pUpd,"uNT"),nTaps);
   gl.uniform2f(U(pUpd,"uFT"),1/fw,1/fh);gl.uniform2f(U(pUpd,"uFS"),fw,fh);
   gl.uniform1f(U(pUpd,"uMu"),P.mu);gl.uniform1f(U(pUpd,"uSg"),P.sg);gl.uniform1f(U(pUpd,"uDt"),P.dt);
-  gl.uniform4f(U(pUpd,"uMouse"),mouse.x/innerWidth,mouse.y/innerHeight,
+  gl.uniform4f(U(pUpd,"uMouse"),mouse.x/innerWidth,1-mouse.y/innerHeight,   // field v runs bottom-up
     P.R*0.9,mouse.down?mouse.mode*0.9*P.dt*10:0);
   quad();
   si=dst;
