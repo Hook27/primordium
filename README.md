@@ -17,7 +17,7 @@ Each world is a single HTML file: no libraries, no build step, no network, no as
 | [Formica](formica.html) | ant colony | **Stigmergy** | A leaderless colony finds the shortest road on two evaporating pheromones. |
 | [Sturnus](sturnus.html) | murmuration | **Alignment** | A flock where each bird watches its seven nearest neighbours and turns as one. |
 | [Vivarium](vivarium.html) | xenobiology | **Forces · game** | Primordium as a hunt: the simulation is measured, classified into twelve archetypes and collected. |
-| [Navis](navis.html) | particle life voyage | **Forces · voyage** | Primordium without edges: follow a creature, tow it by hand, and rewind the last minute exactly. |
+| [Navis](navis.html) | particle life voyage | **Forces · voyage** | Primordium without edges: follow a creature, tow it, feed it, take it to other worlds, and rewind the last minute exactly. |
 
 ## Four kinds of emergence
 
@@ -73,6 +73,12 @@ there is always new soup ahead.
   (small high, large low), its speed the tempo, and its species the timbre (each species an overtone,
   as strong as its share). Merging, splitting, being swallowed, taking in food and dissolving each have
   a cue, all on the same pentatonic scale.
+- **Travel** — take the followed form to a new world: new rules from a new seed, fresh soup around a
+  clear zone. Among its own particles the form keeps the rules of its old world (and its colours; the
+  locals get colours in between). How guests and locals treat each other, the *meeting*, is rolled from
+  the world's own generator, and *Meeting* rolls another. The soup is the locals', so the guests are never
+  renewed: the form survives only by holding together or taking in locals. Travel on and every species it
+  then holds goes along (up to 8 guest species next to up to 8 local ones).
 - **Feed** — drop a portion around the followed form, or strew food with the mouse in Feed mode, of one
   species or a mix. Food is never created: particles far out of sight are fetched and set down at rest,
   so the count stays fixed. The life story records each meal and, five seconds on, how much of it the
@@ -115,7 +121,8 @@ Every world except Vivarium carries the same kit:
   for bodies straddling the toroidal seam, covariance eigenvalues for elongation, and *n*-fold
   symmetry computed by raising each particle's unit vector to the *n*-th power through an
   angle-addition recurrence — no `atan2`, `sin` or `cos` in the hot loop.
-- **Navis** — Primordium's step on a camera-centred torus with renewal at the seam, a ring of 600
+- **Navis** — Primordium's step on a camera-centred torus with renewal at the seam, one matrix of up
+  to 16×16 for locals and guests (every species carrying its own hue, so colours survive a voyage), a ring of 600
   snapshots for exact rewind (interpolated for smooth scrubbing), fixed 60 steps/s drawn in between
   steps for even motion, and BFS over the spatial hash to find and re-identify forms.
 - **Sturnus** — boids with **topological** neighbours (the *k* nearest, not a fixed radius) on a spatial hash; that is why the flock stays whole and scale-free.

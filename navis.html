@@ -166,12 +166,15 @@
     <button id="bFol" title="Follow the largest form near the centre of the view, or let go of the one you follow (key F).">&#9678; Follow</button>
     <button id="bZoom" title="Back to the default zoom (key 0).">&#8982; Zoom 1:1</button>
     <button id="bFeed" title="Drop a portion of 20 particles in a ring around the form you follow (key G). In Feed mode you can also strew food with the mouse.">&#127793; Feed</button>
+    <button id="bTravel" title="Take the form you follow to a new world: fresh rules and fresh soup, while it keeps its own rules (key T).">&#9992; Travel</button>
+    <button id="bMeet" title="Roll other rules for how the guests and the locals treat each other.">&#8635; Meeting</button>
     <button id="bGhost" class="on" aria-pressed="true" title="What-if ghosts: touch the past and the future you had seen plays on for a while as fading rings, wherever it differs (key W).">&#128123; Ghosts</button>
   </div>
   <div class="food" id="food" role="radiogroup" aria-label="Food: which species to feed"></div>
-  <div class="lbl kl">keys &middot; f follow &middot; g feed &middot; w ghosts &middot; j life &middot; o portrait &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
+  <div class="lbl kl">keys &middot; f follow &middot; g feed &middot; w ghosts &middot; j life &middot; o portrait &middot; t travel &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
   <div class="lbl">interaction matrix &middot; drag cells &updownarrow;</div>
   <div id="mx" tabindex="0" role="group" aria-label="Interaction matrix. Arrow keys choose a cell, plus and minus change it."></div>
+  <div id="mxNote" class="sub" hidden>Top left: the locals' rules. Bottom right: the guest's own. The rest: how they meet.</div>
 </div>
 <div id="tl" class="glass" role="group" aria-label="Time">
   <button id="bPlay" aria-label="Pause">&#10073;&#10073;</button>
@@ -229,6 +232,16 @@
   under <b>food</b>, or a mix, and watch whether the form takes it in and changes colour; the life story
   tells you how much it took. Food is never made: it is fetched from far out of sight, so the number of
   particles stays the same.</p>
+  <h3>Travelling</h3>
+  <p><b>Travel</b> (or <code>t</code>) takes the form you follow to a new world: new rules from a new seed,
+  fresh soup all around and, at first, a clear zone around the form. The form keeps the rules of its old
+  world among its own particles and keeps its colours; the locals get colours in between. How guests and
+  locals treat each other is new as well &mdash; the <b>meeting</b> &mdash; and <b>Meeting</b> rolls
+  another. The grid then shows three parts: the locals' rules top left, the guest's own bottom right,
+  the meeting in between. Randomize, the presets and Load change only the locals' rules. The soup belongs
+  to the locals, so the guests are never renewed: the form lives on only by holding together or by
+  taking in locals (or by being fed its own kind). Travel again and every species it then holds goes along.
+  Rewind and you are back in the old world, exactly.</p>
   <h3>Time</h3>
   <p>The last 60 seconds are kept, rules and all: rewind past a Mutate or a slider change and the grid and
   sliders go back with it. Press play and history continues from that moment. Leave it alone and exactly the
@@ -252,7 +265,7 @@
   <code>e</code> evolve &middot; <code>p</code> palette &middot; <code>a</code> sound &middot;
   <code>n</code> respawn &middot; <code>s</code> save PNG &middot; <code>h</code> hide panel &middot;
   <code>i</code> this panel &middot; <code>f</code> follow &middot; <code>esc</code> let go &middot;
-  <code>j</code> life story &middot; <code>o</code> portrait &middot; <code>g</code> feed &middot; <code>w</code> ghosts &middot;
+  <code>j</code> life story &middot; <code>o</code> portrait &middot; <code>t</code> travel &middot; <code>g</code> feed &middot; <code>w</code> ghosts &middot;
   <code>,</code> <code>.</code> step in time &middot; <code>l</code> live &middot; arrows look around &middot;
   <code>shift</code>+arrows tow &middot; <code>+</code> <code>&minus;</code> <code>0</code> zoom</p>
   <p class="cr">A single self-contained HTML file &middot; no libraries, no network, no assets. Built with Claude.</p>
@@ -285,7 +298,8 @@ let RM=R0,LINK2=(0.5*R0)**2;                // interaction radius now, and the l
 // ---- world state: everything a snapshot must hold to replay exactly ----
 const S={n:0,Lx:1,Ly:1,x:null,y:null,vx:null,vy:null,typ:null,aff:null,rng:1,camX:0,camY:0,
   fol:new Int32Array(CAP),folW:new Float32Array(CAP),folN:0,step:0,evo:false,seed:0,custom:false,rv:0,
-  tX:0,tY:0,cvx:0,cvy:0,fvx:0,fvy:0};   // camera: tight tracker, own velocity, tracker velocity smoothed
+  tX:0,tY:0,cvx:0,cvy:0,fvx:0,fvy:0,   // camera: tight tracker, own velocity, tracker velocity smoothed
+  gk:0,hue:[]};                        // guest species, and every species' hue position (never changed in place)
 // The camera glides after a followed form (tuned on recorded flights of the fastest forms): a calm
 // zone in the middle, the form's velocity averaged over 0.4 s, speed changes eased, ever firmer as the
 // form nears CLIM, which it may never pass. All per step (60/s), all part of the timeline.
@@ -295,7 +309,11 @@ let prevX,prevY,pcx=0,pcy=0,prevOK=false,alpha=1,lx,ly;
 // what you see: the world's camera, plus (view only) an offset that keeps a followed form on screen
 // when you zoom in beyond the camera's own margin
 const VW={x:0,y:0,ox:0,oy:0};
-const mat=new Float32Array(64);      // up to 8x8, stride P.k
+// Species: the world's own P.k, then (after a voyage) S.gk guest species. The matrix has stride nk().
+// Every species has a hue position (S.hue), so a guest keeps its colours in another world.
+const MAXK=16,mat=new Float32Array(MAXK*MAXK);
+const nk=()=>P.k+S.gk;
+const homeHue=k=>Array.from({length:k},(_,i)=>i/k);
 let RVC=0;function rulesChanged(){S.rv=++RVC;}   // every rule state gets its own id, for the panel
 let zoom=1,zMin=0.5,zMax=4;
 let cols=3,rows=3,cw=1,ch=1;
@@ -322,7 +340,11 @@ const pals=[
   (i,k)=>"hsl("+(155+i/k*45|0)+",22%,"+(38+i/k*48|0)+"%)" // mono
 ];
 let pal=0,cols_=[];
-function buildColors(){cols_=[];for(let i=0;i<P.k;i++)cols_.push(pals[pal](i,P.k));}
+function buildColors(){if(S.hue.length!==nk())S.hue=homeHue(P.k);cols_=colsOf(S.hue);}
+// the colours of a hue map in the current palette (the life story keeps the maps of its past)
+const colCache=new WeakMap();
+function colsOf(hue){let c=colCache.get(hue);
+  if(!c||c.pal!==pal){c=hue.map(h=>pals[pal](h,1));c.pal=pal;colCache.set(hue,c);}return c;}
 
 // ---- the box, the zoom and the spatial hash ----
 const z0=()=>ZREL*Math.min(W,H)/R0;
@@ -361,31 +383,38 @@ function resetWorld(){
   S.step=0;mode="live";view=0;viewOX=viewOY=0;tow.on=false;stir.on=false;hover=null;drag=null;lost=false;
   histReset();pushSnap();clearTrails();uiRv=-1;
 }
+// no guests left: back to the world's own block of rules (stride P.k), its colours kept
+function dropGuests(){
+  const k=P.k,K=nk(),m=mat.slice(0,K*K);
+  for(let i=0;i<k;i++)for(let j=0;j<k;j++)mat[i*k+j]=m[i*K+j];
+  S.gk=0;S.hue=S.hue.slice(0,k);buildColors();rulesChanged();buildMx();buildFood();
+}
 function spawnPositions(){
+  if(S.gk)dropGuests();   // fresh soup is the world's own: guests would have nobody left
   S.rng=rand32()|0;S.folN=0;tow.on=false;prevOK=false;
   for(let i=0;i<S.n;i++){S.x[i]=S.camX+(rnd()-.5)*S.Lx;S.y[i]=S.camY+(rnd()-.5)*S.Ly;
     S.vx[i]=0;S.vy[i]=0;S.typ[i]=(rnd()*P.k)|0;}
 }
 // reproducible rules: the matrix is derived from a 32-bit seed exactly as in Primordium
 function genSeed(s){
-  S.seed=s>>>0;S.custom=false;const r=mulberry32(S.seed||1),k=P.k;
-  for(let i=0;i<k;i++)for(let j=0;j<k;j++)mat[i*k+j]=r()*2-1;
+  S.seed=s>>>0;S.custom=false;const r=mulberry32(S.seed||1),k=P.k,K=nk();   // the world's own block only
+  for(let i=0;i<k;i++)for(let j=0;j<k;j++)mat[i*K+j]=r()*2-1;
   rulesChanged();
 }
 function mutate(amt,rf){
-  for(let i=0,L=P.k*P.k;i<L;i++){const v=mat[i]+(rf()*2-1)*amt;mat[i]=v<-1?-1:v>1?1:v;}
+  for(let i=0,L=nk()*nk();i<L;i++){const v=mat[i]+(rf()*2-1)*amt;mat[i]=v<-1?-1:v>1?1:v;}
   S.custom=true;rulesChanged();
 }
 function preset(p){
   if(p==="random"){genSeed(rand32());return;}
-  const k=P.k;
+  const k=P.k,K=nk();
   for(let i=0;i<k;i++)for(let j=0;j<k;j++){
     let v=0;
     if(p==="cells")  v=i===j?1:-0.35;
     else if(p==="gas")v=i===j?-0.1:-(0.3+Math.random()*0.6);
     else if(p==="chase")v=j===(i+1)%k?1:i===j?-0.15:-0.25;
     else if(p==="snakes")v=i===j?0.55:j===(i+1)%k?0.45:i===(j+1)%k?-0.45:-0.1;
-    mat[i*k+j]=v;
+    mat[i*K+j]=v;
   }
   S.custom=true;rulesChanged();
 }
@@ -393,7 +422,7 @@ function preset(p){
 // ---- simulation: Primordium's step on a torus centred on the camera ----
 function forces(){
   const n=S.n,x=S.x,y=S.y,vx=S.vx,vy=S.vy,typ=S.typ,Lx=S.Lx,Ly=S.Ly,hx=Lx*.5,hy=Ly*.5;
-  const k=P.k,beta=P.beta,ib=1/(1-beta),rM=RM,r2=rM*rM,fpf=rM*P.force,dt=P.dt,ff=Math.pow(0.5,dt/P.fhl);
+  const k=nk(),beta=P.beta,ib=1/(1-beta),rM=RM,r2=rM*rM,fpf=rM*P.force,dt=P.dt,ff=Math.pow(0.5,dt/P.fhl);
   fillGrid(gPhys,x,y,n);
   const head=gPhys.head,nxt=gPhys.nxt,cel=gPhys.cel;
   for(let i=0;i<n;i++){
@@ -586,14 +615,14 @@ function coreSize(w,cnt){let c=0;for(let q=0;q<cnt;q++)if(w[q]>=CORE)c++;return 
 let LIFE=null,lifeHidden=false;
 const LIFE_MAX=14400;   // an hour of samples; after that only events are kept
 function lifeNew(hit,how){
-  const L=LIFE={start:S.step,orig:new Uint8Array(S.n),k:P.k,steps:[],core:[],own:[],mem:[],spc:[],
+  const L=LIFE={start:S.step,orig:new Uint8Array(S.n),k:MAXK,steps:[],core:[],own:[],mem:[],spc:[],hue:[],
     shapes:[],last:null,events:[],pending:[],splitP:null,brushP:null,mealP:null,end:null,big:false,bigLog:-1e9};
   for(let q=0;q<hit.n;q++)L.orig[hit.list[q]]=1;
   lifeHidden=false;lifeSample();
   lifeEv(how,(how==="towed"?"grabbed and towed":"picked")+" · "+hit.n+" particles");
 }
 function lifeEv(type,text,at,sp){
-  LIFE.events.push({s:S.step,at:at==null?S.step:at,type,text,sp:sp==null?-1:sp});
+  LIFE.events.push({s:S.step,at:at==null?S.step:at,type,text,sp:sp==null?-1:sp,hu:sp==null||sp<0?-1:S.hue[sp]});
   if(mode==="live"&&!lifeHidden)$("lifeLive").textContent=text;
   voiceCue(type,text);
 }
@@ -601,7 +630,7 @@ function lifeEv(type,text,at,sp){
 function lifeFeed(ids,wx,wy){
   const L=LIFE;if(!L||L.end!==null||!S.folN||!ids.length)return;
   const r=formRadius();if(Math.hypot(wd(wx-B.x,S.Lx),wd(wy-B.y,S.Ly))>r+2.5*RM)return;
-  const sp=foodSp>=0&&foodSp<P.k?foodSp:-1,m=L.mealP;
+  const sp=foodSp>=0&&foodSp<nk()?foodSp:-1,m=L.mealP;
   let all=Int32Array.from(ids);if(m){all=new Int32Array(m.ids.length+ids.length);all.set(m.ids);all.set(ids,m.ids.length);}
   L.mealP={at:m?m.at:S.step,ids:all,sp:m&&m.sp!==sp?-1:sp,last:S.step};   // a new record: snapshots keep the old one
 }
@@ -623,14 +652,14 @@ function lifeShape(L){
   const x=new Float32Array(n),y=new Float32Array(n),t=new Uint8Array(n);
   for(let q=0;q<n;q++){const i=S.fol[q];x[q]=wd(S.x[i]-cx,S.Lx);y[q]=wd(S.y[i]-cy,S.Ly);
     t[q]=S.typ[i]|(S.folW[q]>=CORE?128:0);}   // the high bit marks the form's own particles
-  const sh={at:S.step,n,x,y,t};L.last=sh;
+  const sh={at:S.step,n,x,y,t,hue:S.hue};L.last=sh;
   if(L.shapes.length<SHAPE_MAX&&S.step-L.start>=L.shapes.length*SHAPE_EVERY)L.shapes.push(sh);
 }
 function lifeSample(){
   const L=LIFE;lifeShape(L);if(L.steps.length>=LIFE_MAX)return;
   const k=L.k,sp=new Array(k).fill(0);let core=0,own=0;
   for(let q=0;q<S.folN;q++){if(S.folW[q]<CORE)continue;const i=S.fol[q];core++;own+=L.orig[i];sp[S.typ[i]]++;}
-  L.steps.push(S.step);L.core.push(core);L.own.push(own);L.mem.push(S.folN);for(let t=0;t<k;t++)L.spc.push(sp[t]);
+  L.steps.push(S.step);L.core.push(core);L.own.push(own);L.mem.push(S.folN);L.hue.push(S.hue);for(let t=0;t<k;t++)L.spc.push(sp[t]);
 }
 // Called right after a re-identification: stamp[i]===gen still marks the form's members.
 function lifeStep(prevCore,lostCore,newIds,big){
@@ -717,12 +746,12 @@ function pushSnap(){
   const n=S.n;let s=hist[slot];
   if(!s||s.n!==n){const f=new Float32Array(4*n);
     s=hist[slot]={n,f,X:f.subarray(0,n),Y:f.subarray(n,2*n),t:new Uint8Array(n),a:new Float32Array(n),fol:new Int32Array(CAP),folW:new Float32Array(CAP),
-      m:new Float32Array(64)};}
+      m:new Float32Array(MAXK*MAXK)};}
   s.f.set(S.x,0);s.f.set(S.y,n);s.f.set(S.vx,2*n);s.f.set(S.vy,3*n);s.t.set(S.typ);s.a.set(S.aff);
   s.fol.set(S.fol.subarray(0,S.folN));s.folW.set(S.folW.subarray(0,S.folN));s.folN=S.folN;
   s.rng=S.rng;s.camX=S.camX;s.camY=S.camY;s.step=S.step;
   s.tX=S.tX;s.tY=S.tY;s.cvx=S.cvx;s.cvy=S.cvy;s.fvx=S.fvx;s.fvy=S.fvy;
-  s.m.set(mat);s.rN=P.rN;s.force=P.force;s.fhl=P.fhl;s.beta=P.beta;s.dt=P.dt;
+  s.m.set(mat);s.gk=S.gk;s.hue=S.hue;s.rN=P.rN;s.force=P.force;s.fhl=P.fhl;s.beta=P.beta;s.dt=P.dt;
   s.evo=S.evo;s.seed=S.seed;s.custom=S.custom;s.rv=S.rv;
   s.life=LIFE;if(LIFE){s.lifeS=LIFE.steps.length;s.lifeE=LIFE.events.length;s.lifeSh=LIFE.shapes.length;s.lifeLs=LIFE.last;s.lifeP=LIFE.pending;s.lifeSp=LIFE.splitP;s.lifeBp=LIFE.brushP;s.lifeMp=LIFE.mealP;s.lifeEnd=LIFE.end;s.lifeBig=LIFE.big;s.lifeBl=LIFE.bigLog;}
 }
@@ -733,11 +762,12 @@ function restore(i){
   S.rng=s.rng;S.camX=s.camX;S.camY=s.camY;S.step=s.step;
   S.tX=s.tX;S.tY=s.tY;S.cvx=s.cvx;S.cvy=s.cvy;S.fvx=s.fvx;S.fvy=s.fvy;
   prevOK=false;
-  mat.set(s.m);P.force=s.force;P.fhl=s.fhl;P.beta=s.beta;P.dt=s.dt;
+  mat.set(s.m);if(S.gk!==s.gk||S.hue!==s.hue){S.gk=s.gk;S.hue=s.hue;buildColors();buildMx();buildFood();}
+  P.force=s.force;P.fhl=s.fhl;P.beta=s.beta;P.dt=s.dt;
   S.evo=s.evo;S.seed=s.seed;S.custom=s.custom;S.rv=s.rv;
   if(P.rN!==s.rN){P.rN=s.rN;setRM();}
   LIFE=s.life;   // the story winds back to where it was
-  if(LIFE){const L=LIFE,m=s.lifeS;L.steps.length=L.core.length=L.own.length=L.mem.length=m;L.spc.length=m*L.k;
+  if(LIFE){const L=LIFE,m=s.lifeS;L.steps.length=L.core.length=L.own.length=L.mem.length=L.hue.length=m;L.spc.length=m*L.k;
     L.events.length=s.lifeE;L.shapes.length=s.lifeSh;L.last=s.lifeLs;L.pending=s.lifeP;L.splitP=s.lifeSp;L.brushP=s.lifeBp;L.mealP=s.lifeMp;
     L.end=s.lifeEnd;L.big=s.lifeBig;L.bigLog=s.lifeBl;}
   hCount=i+1;   // the old future is gone: history continues from here
@@ -847,7 +877,7 @@ function makeGhost(i){
   const from=snapAt(i).step,snaps=[];
   for(let j=i+1;j<hCount;j++){
     const slot=(hStart+j)%HIST,s=hist[slot];
-    if(s.step-from>(G_END+1)*SPS)break;
+    if(s.step-from>(G_END+1)*SPS||s.hue!==snapAt(i).hue)break;
     snaps.push(s);hist[slot]=null;   // out of the ring, so the new history cannot overwrite it
   }
   return snaps.length>=2?{from,snaps,k:0}:null;
@@ -872,7 +902,7 @@ function drawGhosts(d){
   const X0=s0.X,Y0=s0.Y,X1=s1.X,Y1=s1.Y,d0=0.15*RM,d1=0.45*RM;
   const rad=Math.min(8,Math.max(2.4,2.5*z/z0()+1.6));
   if(!gxA||gxA.length!==n){gxA=new Float32Array(n);gyA=new Float32Array(n);}
-  const K=P.k;for(let b=0;b<K*4;b++)(gBuckets[b]||(gBuckets[b]=[])).length=0;
+  const K=nk();for(let b=0;b<K*4;b++)(gBuckets[b]||(gBuckets[b]=[])).length=0;
   for(let i=0;i<n;i++){
     const gx=X0[i]+wr(X1[i]-X0[i],Lx)*a,gy=Y0[i]+wr(Y1[i]-Y0[i],Ly)*a;gxA[i]=gx;gyA[i]=gy;
     const dd=Math.hypot(wr(gx-X[i],Lx),wr(gy-Y[i],Ly));
@@ -913,12 +943,13 @@ function shiftCanvas(ox,oy,s){
   bctx.globalCompositeOperation="copy";bctx.drawImage(cv,0,0);
   fillBG();ctx.drawImage(buf,W/2*(1-s)+ox,H/2*(1-s)+oy,W*s,H*s);
 }
-function dots(X,Y,T,cx,cy){
+function dots(X,Y,T,cx,cy,cs){
+  cs=cs||cols_;
   const n=S.n,Lx=S.Lx,Ly=S.Ly,hx=Lx*.5,hy=Ly*.5,z=zoom,mx=W/2,my=H/2;
   const rad=Math.min(7,Math.max(1.3,2.5*z/z0()));
   ctx.globalCompositeOperation="lighter";
-  for(let t=0;t<P.k;t++){
-    ctx.fillStyle=cols_[t];ctx.beginPath();
+  for(let t=0,K=cs.length;t<K;t++){
+    ctx.fillStyle=cs[t];ctx.beginPath();
     for(let i=0;i<n;i++){
       if(T[i]!==t)continue;
       let dx=X[i]-cx,dy=Y[i]-cy;
@@ -939,7 +970,8 @@ function renderReview(){
     reviewKey=key;fillBG();
     const fade=Math.min(1,P.fade),m=fade>=1?0:5;
     for(let j=m;j>=0;j--){   // 2 steps apart, faded as the live trail fades per step
-      const r=interp(view-j/3);ctx.globalAlpha=Math.pow(1-fade,2*j);dots(r.X,r.Y,r.T,cx,cy);
+      const v=view-j/3,r=interp(v);ctx.globalAlpha=Math.pow(1-fade,2*j);
+      dots(r.X,r.Y,r.T,cx,cy,colsOf(snapAt(Math.max(0,Math.min(hCount-1,Math.round(v)))).hue));
     }
     ctx.globalAlpha=1;tc.x=cx;tc.y=cy;tc.z=zoom;trailOK=true;
   }
@@ -1092,6 +1124,7 @@ function voiceCue(type,text){
   else if(type==="swallowed"){tone(55,now,1.4,0.16);vDip=now+0.7;}                      // a dull thud, the drone dips
   else if(type==="feed"&&/took in/.test(text))for(let q=0;q<4;q++)tone(at(c+4+q),now+q*0.07,0.7,0.06,w);   // a sparkle
   else if(type==="dissolved")for(let q=0;q<5;q++)tone(at(c+4-q),now+q*0.32,2.4,0.08,w); // dying away
+  else if(type==="voyage")for(let q=0;q<5;q++)tone(at(c+q*2),now+q*0.12,2.2,0.07,w);      // off to a new world
 }
 function audioFrame(){
   if(!audioOn||!actx)return;
@@ -1140,18 +1173,24 @@ function applySlider(d,v){
 }
 function randSettings(){defs.forEach(d=>applySlider(d,Math.round((d.mn+Math.random()*(d.mx-d.mn))/d.st)*d.st));}
 function resetSettings(){defs.forEach(d=>applySlider(d,DEF[d.k]));}
-function onK(){buildColors();genSeed(S.seed);resetWorld();buildMx();buildFood();}
+function onK(){S.gk=0;S.hue=homeHue(P.k);buildColors();genSeed(S.seed);resetWorld();buildMx();buildFood();}
 
 // ---- interaction matrix editor: drag a cell up/down, or arrows + plus/minus from the keyboard ----
 const mx=$("mx");let mxCur=0,mdrag=null;
 function cellColor(v){const a=(0.1+0.9*Math.abs(v)).toFixed(2);
   return v>=0?"rgba(60,232,170,"+a+")":"rgba(244,72,96,"+a+")";}
-function buildMx(){
-  const k=P.k;if(mxCur>=k*k)mxCur=0;
-  mx.style.gridTemplateColumns="repeat("+k+",1fr)";mx.innerHTML="";
+let mxK=0,mxHue=null;
+function buildMx(k,hue){
+  k=k||nk();hue=hue||S.hue;mxK=k;mxHue=hue;const cs=colsOf(hue);if(mxCur>=k*k)mxCur=0;
+  // with guests, a narrow gap parts the blocks: the locals, the guest's own rules, the meeting
+  const h=P.k,g=k-h,gap=g?" 4px repeat("+g+",1fr)":"";
+  mx.style.gridTemplateColumns="repeat("+Math.min(h,k)+",1fr)"+gap;
+  mx.style.gridTemplateRows=g?"repeat("+h+",auto)"+gap.replace("1fr","auto"):"";
+  mx.innerHTML="";$("mxNote").hidden=!g;
   for(let i=0;i<k;i++)for(let j=0;j<k;j++){
     const d=document.createElement("div");d.dataset.i=i;d.dataset.j=j;
-    d.style.borderLeft="2px solid "+cols_[i];d.style.borderTop="2px solid "+cols_[j];
+    if(g){d.style.gridColumn=String(j<h?j+1:j+2);d.style.gridRow=String(i<h?i+1:i+2);}
+    d.style.borderLeft="2px solid "+cs[i];d.style.borderTop="2px solid "+cs[j];
     if(i*k+j===mxCur)d.className="cur";
     mx.appendChild(d);
   }
@@ -1160,7 +1199,7 @@ function buildMx(){
 // the food swatches: a mix, or one species (radio buttons, so arrow keys pick one)
 function buildFood(){
   const box=$("food");box.innerHTML='<span class="fl">food</span>';
-  if(foodSp>=P.k)foodSp=-1;
+  if(foodSp>=nk())foodSp=-1;
   const add=(v,label,col)=>{
     const l=document.createElement("label"),inp=document.createElement("input"),s=document.createElement("span");
     l.className="sw"+(v<0?" mix":"");l.title=label;
@@ -1170,26 +1209,27 @@ function buildFood(){
     l.appendChild(inp);l.appendChild(s);box.appendChild(l);
   };
   add(-1,"Mixed food: all species");
-  for(let t=0;t<P.k;t++)add(t,"Food of species "+(t+1),cols_[t]);
+  for(let t=0,K=nk();t<K;t++)add(t,"Food of "+spName(t),cols_[t]);
 }
-function paintMx(M){const k=P.k;for(const d of mx.children)d.style.background=cellColor(M[(+d.dataset.i)*k+(+d.dataset.j)]);}
-function setCell(i,j,v){live();mat[i*P.k+j]=v<-1?-1:v>1?1:v;S.custom=true;rulesChanged();}
+function paintMx(M){const k=mxK;for(const d of mx.children)d.style.background=cellColor(M[(+d.dataset.i)*k+(+d.dataset.j)]);}
+function setCell(i,j,v){live();mat[i*nk()+j]=v<-1?-1:v>1?1:v;S.custom=true;rulesChanged();}
+const spName=t=>t<P.k?"species "+(t+1):"guest species "+(t-P.k+1);
 function markCur(){
-  const k=P.k;[...mx.children].forEach((d,q)=>d.classList.toggle("cur",q===mxCur));
+  const k=mxK;[...mx.children].forEach((d,q)=>d.classList.toggle("cur",q===mxCur));
   const i=(mxCur/k)|0,j=mxCur%k;
-  mx.setAttribute("aria-label","Interaction matrix: species "+(i+1)+" toward species "+(j+1)+" = "+
+  mx.setAttribute("aria-label","Interaction matrix: "+spName(i)+" toward "+spName(j)+" = "+
     mat[mxCur].toFixed(2)+". Arrow keys choose a cell, plus and minus change it.");
 }
 mx.addEventListener("pointerdown",e=>{
   const d=e.target.closest("#mx>div");if(!d)return;
   const i=+d.dataset.i,j=+d.dataset.j;live();
-  mxCur=i*P.k+j;markCur();
-  mdrag={i,j,y:e.clientY,v:mat[i*P.k+j]};mx.setPointerCapture(e.pointerId);e.preventDefault();
+  mxCur=i*nk()+j;markCur();
+  mdrag={i,j,y:e.clientY,v:mat[i*nk()+j]};mx.setPointerCapture(e.pointerId);e.preventDefault();
 });
 mx.addEventListener("pointermove",e=>{if(mdrag)setCell(mdrag.i,mdrag.j,mdrag.v-(e.clientY-mdrag.y)/120);});
 addEventListener("pointerup",()=>{mdrag=null;});
 mx.addEventListener("keydown",e=>{
-  const k=P.k,i=(mxCur/k)|0,j=mxCur%k,key=e.key;let used=true;
+  const k=mxK,i=(mxCur/k)|0,j=mxCur%k,key=e.key;let used=true;
   if(key==="ArrowLeft")mxCur=i*k+(j+k-1)%k;else if(key==="ArrowRight")mxCur=i*k+(j+1)%k;
   else if(key==="ArrowUp")mxCur=((i+k-1)%k)*k+j;else if(key==="ArrowDown")mxCur=((i+1)%k)*k+j;
   else if(key==="+"||key==="=")setCell(i,j,mat[mxCur]+(e.shiftKey?0.02:0.1));
@@ -1202,6 +1242,8 @@ mx.addEventListener("keydown",e=>{
 let uiRv=-1;
 function syncUI(){
   const src=mode==="review"?snapAt(Math.max(0,Math.min(hCount-1,Math.round(view)))):null;
+  const K=src?P.k+src.gk:nk(),hue=src?src.hue:S.hue;
+  if(K!==mxK||hue!==mxHue)buildMx(K,hue);   // the past may have had other (or no) guests
   const rv=src?src.rv:S.rv;if(rv===uiRv)return;uiRv=rv;
   const g=src||{m:mat,rN:P.rN,force:P.force,fhl:P.fhl,beta:P.beta,dt:P.dt,evo:S.evo,seed:S.seed,custom:S.custom};
   for(const key of ["rN","force","fhl","beta","dt"]){const r=rngs[key];r.inp.value=g[key];r.val.textContent=r.d.f(g[key]);}
@@ -1275,11 +1317,11 @@ function fetchFood(count){
 }
 // in a ring r0..r1 around (cx,cy); r0=0 makes it a disc
 function dropFood(ids,cx,cy,r0,r1){
-  const k=P.k;
+  const k=nk();
   for(const i of ids){
     const a=Math.random()*TAU,r=Math.sqrt(r0*r0+Math.random()*(r1*r1-r0*r0));
     S.x[i]=prevX[i]=cx+Math.cos(a)*r;S.y[i]=prevY[i]=cy+Math.sin(a)*r;   // no streak from where it came
-    S.vx[i]=0;S.vy[i]=0;S.typ[i]=foodSp>=0&&foodSp<k?foodSp:(Math.random()*k)|0;S.aff[i]=0;
+    S.vx[i]=0;S.vy[i]=0;S.typ[i]=foodSp>=0&&foodSp<k?foodSp:(Math.random()*P.k)|0;S.aff[i]=0;
   }
   glows.push({x:cx,y:cy,r:r1,t:performance.now()});
 }
@@ -1300,6 +1342,56 @@ function formRadius(){
   body(S.fol,S.folN,S.x,S.y,S.folW);let s=0,c=0;
   for(let q=0;q<S.folN;q++){if(S.folW[q]<CORE)continue;const i=S.fol[q],dx=wd(S.x[i]-B.x,S.Lx),dy=wd(S.y[i]-B.y,S.Ly);s+=dx*dx+dy*dy;c++;}
   return c?Math.sqrt(s/c):0;
+}
+
+// ---- travelling between worlds ----
+// The followed form goes to a new world: fresh rules from a new seed and fresh soup all around, with
+// a clear zone so the meetings come one by one. Among its own particles it keeps the rules of its old
+// world (the guest block of the matrix). How guests and locals treat each other is the meeting: drawn
+// from the world's own generator, so it replays; Meeting rolls another. The soup is the locals', so
+// the guests are never renewed: the form survives only by holding together or taking in locals.
+function hostHues(k,guest){   // the locals' hues, evenly spread and as far from the guests' as can be
+  let best=0,bd=-1;
+  for(let s=0;s<64;s++){const o=s/64/k;let d=1;
+    for(let j=0;j<k;j++)for(const g of guest){const e=Math.abs(o+j/k-g)%1;d=Math.min(d,e,1-e);}
+    if(d>bd){bd=d;best=o;}}
+  return Array.from({length:k},(_,j)=>best+j/k);
+}
+function rollMeeting(rf){const k=P.k,K=nk();
+  for(let i=0;i<k;i++)for(let a=k;a<K;a++){mat[i*K+a]=rf()*2-1;mat[a*K+i]=rf()*2-1;}}
+function travel(){
+  live();
+  if(!S.folN){msg("Follow a form first: that is the one that travels.");return;}
+  tow.on=false;
+  const n=S.n,oldK=nk(),oldHue=S.hue,old=mat.slice(0,oldK*oldK),k=P.k,cnt=new Array(oldK).fill(0);
+  for(let q=0;q<S.folN;q++)cnt[S.typ[S.fol[q]]]++;
+  // it takes its species along, the eight most numerous at most
+  const gs=[...cnt.keys()].filter(t=>cnt[t]>0).sort((a,b)=>cnt[b]-cnt[a]||a-b).slice(0,MAXK-8).sort((a,b)=>a-b);
+  const map=new Int16Array(oldK).fill(-1);gs.forEach((t,a)=>map[t]=k+a);
+  const gk=gs.length,K=k+gk,guestHue=gs.map(t=>oldHue[t]);
+  S.gk=gk;S.hue=hostHues(k,guestHue).concat(guestHue);
+  mat.fill(0);genSeed(rand32());   // the new world's own rules
+  for(let a=0;a<gk;a++)for(let b=0;b<gk;b++)mat[(k+a)*K+k+b]=old[gs[a]*oldK+gs[b]];
+  rollMeeting(rnd);
+  // the form stays as it is; everything else becomes fresh soup, at rest, outside a clear zone
+  body(S.fol,S.folN,S.x,S.y,S.folW);const bx=B.x,by=B.y,mine=new Uint8Array(n);let kq=0,r=0;
+  for(let q=0;q<S.folN;q++){const i=S.fol[q];if(map[S.typ[i]]<0)continue;
+    mine[i]=1;S.typ[i]=map[S.typ[i]];S.fol[kq]=i;S.folW[kq]=S.folW[q];kq++;
+    r=Math.max(r,Math.hypot(wd(S.x[i]-bx,S.Lx),wd(S.y[i]-by,S.Ly)));}
+  S.folN=kq;const R=r+1.5*RM;
+  for(let i=0;i<n;i++){if(mine[i])continue;
+    let x,y,tr=0;
+    do{x=S.camX+(rnd()-.5)*S.Lx;y=S.camY+(rnd()-.5)*S.Ly;}while(Math.hypot(wd(x-bx,S.Lx),wd(y-by,S.Ly))<R&&++tr<20);
+    S.x[i]=x;S.y[i]=y;S.vx[i]=0;S.vy[i]=0;S.typ[i]=(rnd()*k)|0;S.aff[i]=0;}
+  prevOK=false;ghost=null;clearTrails();buildColors();buildMx();buildFood();
+  const w=S.seed.toString(36);
+  if(LIFE&&LIFE.end===null)lifeEv("voyage","travelled to world "+w+" · "+gk+" guest species among "+k);
+  msg("Arrived in world "+w+". The form keeps its own rules; how it meets the "+k+" local species is new.");
+}
+function newMeeting(){
+  live();
+  if(!S.gk){msg("No guests here yet: follow a form and travel with it first.");return;}
+  rollMeeting(Math.random);rulesChanged();msg("Another meeting: guests and locals now treat each other differently.");
 }
 
 // mouse modes: Look (look around, tow forms), Primordium's Push / Pull, or Feed
@@ -1421,6 +1513,7 @@ addEventListener("keydown",e=>{
   else if(c==="l")goLive();
   else if(c==="j")toggleLife();
   else if(c==="o")portrait();
+  else if(c==="t")travel();
   else if(c==="g")feedPortion();
   else if(c==="w")toggleGhosts();
 });
@@ -1468,6 +1561,8 @@ $("bFol").onclick=toggleFollow;
 $("bZoom").onclick=()=>setZoom(z0(),null);
 $("bFeed").onclick=feedPortion;
 $("bGhost").onclick=toggleGhosts;
+$("bTravel").onclick=travel;
+$("bMeet").onclick=newMeeting;
 $("bPlay").onclick=togglePlay;
 $("bLive").onclick=goLive;
 $("bAbout").onclick=openAbout;$("aClose").onclick=closeAbout;
@@ -1497,7 +1592,7 @@ function updTimeline(){
 function updHud(t){
   if(t-hudT<250)return;hudT=t;
   const g=mode==="live"?S:displayState(),f=g.folN?Math.max(1,coreSize(g.folW,g.folN)):0;   // the form's core
-  $("hud").innerHTML=(fps|0)+" fps · "+S.n+" particles · "+P.k+" species<br>"+
+  $("hud").innerHTML=(fps|0)+" fps · "+S.n+" particles · "+(S.gk?P.k+" local + "+S.gk+" guest species":P.k+" species")+"<br>"+
     (f?"following · "+f:"free camera")+(mode==="review"?" · past":"");
   const fb=$("bFol"),on=mode==="live"&&S.folN>0;
   fb.classList.toggle("on",on);fb.innerHTML=on?"&#9678; Let go":"&#9678; Follow";
@@ -1509,7 +1604,7 @@ function updHud(t){
 // keeps the whole known life with a cursor at that moment, the list stops there.
 const clock=st=>{const s=Math.max(0,Math.round(st/SPS));return (s/60|0)+":"+String(s%60).padStart(2,"0");};
 const EV_MARK={picked:"#ffffff",towed:"#ffffff",tow:"#ffd24a",merge:"#39e0c8",brush:"#a5bbb5",
-  split:"#ffb04a",swallowed:"#c98bd6",dissolved:"#ff6b6b","let go":"#a5bbb5",feed:"#96e85a"};
+  split:"#ffb04a",swallowed:"#c98bd6",voyage:"#7fa8ff",dissolved:"#ff6b6b","let go":"#a5bbb5",feed:"#96e85a"};
 let lifeKey="",lifeListKey="";
 function updLife(){
   let L=null,nS=0,nE=0,end=null,now=0,full=0;
@@ -1535,7 +1630,7 @@ function updLife(){
     for(const e of evs){const li=document.createElement("li"),tm=document.createElement("time"),sp=document.createElement("span");
       tm.textContent=clock(e.at-L.start);sp.textContent=e.text;li.appendChild(tm);
       if(e.type==="feed"&&e.sp>=0){const ch=document.createElement("i");ch.className="chip";ch.setAttribute("aria-hidden","true");
-        ch.style.background=cols_[e.sp%cols_.length];li.appendChild(ch);}
+        ch.style.background=pals[pal](e.hu,1);li.appendChild(ch);}
       li.appendChild(sp);ol.appendChild(li);}
     ol.scrollTop=ol.scrollHeight;}
 }
@@ -1553,7 +1648,7 @@ function drawChart(g,w,h,L,full,nS,now,u,cursor){
   const k=L.k,t0=L.start,t1=Math.max(t0+5*SPS,L.steps[full-1],now),span=t1-t0,base=h-9*u,ph=base-4*u;
   let mx=1;for(let q=0;q<full;q++)if(L.core[q]>mx)mx=L.core[q];
   const X=st=>(st-t0)/span*(w-1);
-  let q=0;
+  let q=0,cq=null;
   for(let px=0;px<w;px++){   // one column per pixel: the latest sample up to that moment
     const tp=t0+px/(w-1)*span;
     while(q+1<full&&L.steps[q+1]<=tp)q++;
@@ -1561,7 +1656,8 @@ function drawChart(g,w,h,L,full,nS,now,u,cursor){
     if(q===full-1&&tp>L.steps[q]+15)break;
     g.globalAlpha=q<nS?0.9:0.28;   // past the cursor: the future that followed, dimmed
     let y=base;
-    for(let t=0;t<k;t++){const v=L.spc[q*k+t];if(!v)continue;const hh=v/mx*ph;g.fillStyle=cols_[t%cols_.length];g.fillRect(px,y-hh,1,hh);y-=hh;}
+    cq=colsOf(L.hue[q]);
+    for(let t=0;t<k;t++){const v=L.spc[q*k+t];if(!v)continue;const hh=v/mx*ph;g.fillStyle=cq[t];g.fillRect(px,y-hh,1,hh);y-=hh;}
   }
   g.globalAlpha=1;
   for(const e of L.events){   // only events written by the moment on screen are marked
@@ -1576,6 +1672,7 @@ function evMark(g,type,x,y,u){
   if(type==="merge"){g.moveTo(x,y-3*u);g.lineTo(x+3.5*u,y+3*u);g.lineTo(x-3.5*u,y+3*u);}
   else if(type==="split"){g.moveTo(x,y+3*u);g.lineTo(x+3.5*u,y-3*u);g.lineTo(x-3.5*u,y-3*u);}
   else if(type==="dissolved"||type==="let go")g.rect(x-u,y-4*u,2*u,8*u);
+  else if(type==="voyage"){g.moveTo(x,y-4*u);g.lineTo(x+3.5*u,y);g.lineTo(x,y+4*u);g.lineTo(x-3.5*u,y);}
   else g.arc(x,y,2.6*u,0,TAU);
   g.fill();
 }
@@ -1595,10 +1692,10 @@ const PW=1600,PH=1000,PS=2,PF="ui-monospace,SFMono-Regular,Menlo,Consolas,monosp
 function lifeAt(){   // the story as it stands at the moment on screen, and the world at that moment
   if(mode==="live")return LIFE&&{L:LIFE,nS:LIFE.steps.length,nE:LIFE.events.length,nSh:LIFE.shapes.length,
     last:LIFE.last,end:LIFE.end,now:S.step,X:S.x,Y:S.y,T:S.typ,fol:S.fol,folW:S.folW,folN:S.folN,
-    seed:S.seed,custom:S.custom};
+    seed:S.seed,custom:S.custom,hue:S.hue};
   const s=snapAt(Math.max(0,Math.min(hCount-1,Math.round(view))));
   return s.life&&{L:s.life,nS:s.lifeS,nE:s.lifeE,nSh:s.lifeSh,last:s.lifeLs,end:s.lifeEnd,now:s.step,
-    X:s.X,Y:s.Y,T:s.t,fol:s.fol,folW:s.folW,folN:s.folN,seed:s.seed,custom:s.custom};
+    X:s.X,Y:s.Y,T:s.t,fol:s.fol,folW:s.folW,folN:s.folN,seed:s.seed,custom:s.custom,hue:s.hue};
 }
 // the form at that moment around its centre, and which particles are its own; once gone, its last shape
 function formShape(A){
@@ -1607,7 +1704,7 @@ function formShape(A){
   const x=new Float32Array(n),y=new Float32Array(n),t=new Uint8Array(n),mine=new Uint8Array(S.n);
   for(let q=0;q<n;q++){const i=A.fol[q];x[q]=wd(A.X[i]-cx,S.Lx);y[q]=wd(A.Y[i]-cy,S.Ly);
     t[q]=A.T[i]|(A.folW[q]>=CORE?128:0);mine[i]=1;}
-  return {sh:{at:A.now,n,x,y,t},mine,cx,cy,last:false};
+  return {sh:{at:A.now,n,x,y,t,hue:A.hue},mine,cx,cy,last:false};
 }
 function extent(sh){let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
   for(let q=0;q<sh.n;q++){const x=sh.x[q],y=sh.y[q];if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}
@@ -1616,13 +1713,13 @@ const fitScale=(e,w,h,m)=>Math.min(w/(e.x1-e.x0+2*m),h/(e.y1-e.y0+2*m));
 const ownCount=sh=>{let c=0;for(let q=0;q<sh.n;q++)if(sh.t[q]&128)c++;return c;};
 // particles at scale s around (px,py), each a soft halo and a dot; the form's own particles at aOwn,
 // newcomers (and the world around it) at aRest
-function spots(g,sh,px,py,s,rad,aOwn,aRest,k){
+function spots(g,sh,px,py,s,rad,aOwn,aRest,cs){
   g.globalCompositeOperation="lighter";
   for(let pass=0;pass<2;pass++)for(let own=1;own>=0;own--){
     const a=own?aOwn:aRest;if(!a)continue;
     g.globalAlpha=pass?a:a*0.14;const r=pass?rad:rad*2.8;
-    for(let sp=0;sp<k;sp++){
-      let any=false;g.fillStyle=cols_[sp%cols_.length];g.beginPath();
+    for(let sp=0;sp<cs.length;sp++){
+      let any=false;g.fillStyle=cs[sp];g.beginPath();
       for(let q=0;q<sh.n;q++){const tq=sh.t[q];if((tq&127)!==sp||(tq>>7)!==own)continue;
         const X=px+sh.x[q]*s,Y=py+sh.y[q]*s;g.moveTo(X+r,Y);g.arc(X,Y,r,0,TAU);any=true;}
       if(any)g.fill();
@@ -1658,9 +1755,9 @@ function drawPortrait(A){
     for(let i=0;i<S.n;i++){if(F.mine[i])continue;
       const dx=wd(A.X[i]-ox,S.Lx),dy=wd(A.Y[i]-oy,S.Ly);
       if(Math.abs(dx)<hw&&Math.abs(dy)<hh){ax.push(dx+e.cx);ay.push(dy+e.cy);at.push(A.T[i]);}}
-    spots(g,{n:ax.length,x:ax,y:ay,t:at},px,py,s,rad,0,0.2,k);
+    spots(g,{n:ax.length,x:ax,y:ay,t:at},px,py,s,rad,0,0.2,colsOf(A.hue));
   }
-  spots(g,F.sh,px,py,s,rad,1,0.4,k);
+  spots(g,F.sh,px,py,s,rad,1,0.4,colsOf(F.sh.hue));
   g.restore();
   const oc=ownCount(F.sh),nc=F.sh.n-oc;
   ptxt(g,F.last?"LAST FORM":"FORM",fx+20,fy+32,13,"#a5bbb5",{ls:2});
@@ -1685,7 +1782,7 @@ function drawPortrait(A){
   ptxt(g,"GROWTH · ONE SCALE",fx,sy-12,12,"#a5bbb5",{ls:2});
   pick.forEach((sh,i)=>{const x=fx+i*(pw+gp),ex=exts[i];panelBox(g,x,sy,pw,ph);
     g.save();g.beginPath();g.rect(x+1,sy+1,pw-2,ph-2);g.clip();
-    spots(g,sh,x+pw/2-ex.cx*ss,sy+(ph-24)/2-ex.cy*ss,ss,rs,1,0.4,k);g.restore();
+    spots(g,sh,x+pw/2-ex.cx*ss,sy+(ph-24)/2-ex.cy*ss,ss,rs,1,0.4,colsOf(sh.hue));g.restore();
     ptxt(g,clock(sh.at-L.start),x+10,sy+ph-10,13,"#dcefea");
     ptxt(g,String(ownCount(sh)),x+pw-10,sy+ph-10,13,"#a5bbb5",{r:true});
   });
@@ -1699,7 +1796,7 @@ function drawPortrait(A){
   ptxt(g,"largest "+mx+" at "+clock(L.steps[mj]-L.start),rx,128,15,"#c4d6d1");
   let tot=0;for(let t=0;t<k;t++)tot+=L.spc[j*k+t];
   let cx=rx;if(tot)for(let t=0;t<k;t++){const v=L.spc[j*k+t];if(!v)continue;   // what it is made of
-    const w=v/tot*rw;g.fillStyle=cols_[t%cols_.length];g.fillRect(cx,140,w,8);cx+=w;}
+    const w=v/tot*rw;g.fillStyle=colsOf(L.hue[j])[t];g.fillRect(cx,140,w,8);cx+=w;}
   ptxt(g,"SIZE BY SPECIES",rx,178,12,"#a5bbb5",{ls:2});
   ptxt(g,"max "+mx,rx+rw,178,12,"#a5bbb5",{r:true});
   panelBox(g,rx,188,rw,160);
@@ -1723,14 +1820,15 @@ function drawPortrait(A){
   for(const b of show){
     if(!b){ptxt(g,"… "+skip+" more event"+(skip>1?"s":""),rx+70,y,14,"#a5bbb5");y+=LH;continue;}
     ptxt(g,clock(b.ev.at-L.start),rx+46,y,14,"#a5bbb5",{r:true});
-    if(b.ev.type==="feed"&&b.ev.sp>=0){g.fillStyle=cols_[b.ev.sp%cols_.length];g.fillRect(rx+52,y-10,10,10);}
+    if(b.ev.type==="feed"&&b.ev.sp>=0){g.fillStyle=pals[pal](b.ev.hu,1);g.fillRect(rx+52,y-10,10,10);}
     else evMark(g,b.ev.type,rx+57,y-5,1.3);
     for(const ln of b.lines){ptxt(g,ln,rx+70,y,14,"#c9dbd6");y+=LH;}
   }
   // the label
   g.strokeStyle="rgba(90,230,210,.22)";g.lineWidth=1;g.beginPath();g.moveTo(fx,952.5);g.lineTo(PW-40,952.5);g.stroke();
   ptxt(g,"NAVIS · particle life voyage",fx,978,13,"#39e0c8",{b:true,ls:1});
-  ptxt(g,(A.custom?"custom rules":"seed "+A.seed.toString(36))+" · "+k+" species · "+
+  const gk=A.hue.length-P.k;
+  ptxt(g,(A.custom?"custom rules":"seed "+A.seed.toString(36))+" · "+(gk?P.k+" local + "+gk+" guest species":P.k+" species")+" · "+
     fileTime().slice(0,16).replace("T"," "),PW-40,978,13,"#a5bbb5",{r:true});
   return c;
 }
