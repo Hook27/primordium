@@ -88,11 +88,25 @@
   #about code{background:#0b1422;border:1px solid #1c2942;border-radius:5px;padding:1px 5px;color:#8ff}
   #about .cr{color:var(--mut);font-size:11px;margin-top:16px}
   #about button{margin-top:14px;width:100%;padding:10px;font-size:12px}
+  #life{position:fixed;top:48px;right:12px;width:272px;padding:8px 11px 9px;z-index:4;font-size:11px}
+  #life[hidden]{display:none}
+  .lh{display:flex;align-items:baseline;gap:8px}
+  .lh h2{font-size:12px;letter-spacing:2px;color:var(--g);font-weight:700}
+  .lh #lifeAge{color:#fff;font-variant-numeric:tabular-nums}
+  .lh button{margin-left:auto;padding:1px 7px;font-size:11px;line-height:1.4}
+  #lifeStat{color:#c4d6d1;margin:3px 0 5px;font-variant-numeric:tabular-nums}
+  #lifeC{display:block;width:100%;height:58px;border-radius:5px;background:rgba(5,6,10,.55)}
+  #lifeEv{list-style:none;margin-top:6px;max-height:7.6em;overflow:auto;line-height:1.55;color:#c9dbd6}
+  #lifeEv li{display:flex;gap:7px}
+  #lifeEv time{color:var(--mut);min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+  #lifeEv::-webkit-scrollbar{width:5px}#lifeEv::-webkit-scrollbar-thumb{background:#1f2c46;border-radius:3px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   @media (max-width:1180px){#hud{bottom:64px}#hint,#msg{bottom:112px}}
   @media (max-width:560px){
     #ui{top:54px;width:calc(100% - 24px);max-height:calc(100% - 128px)}
     #ui.hide{transform:translateX(calc(-100% - 24px))}
     #hud{display:none}#hint,#msg{bottom:72px}#tTime{min-width:62px}
+    #life{top:auto;bottom:64px;left:12px;right:12px;width:auto}#lifeEv{max-height:3.2em}
   }
   @media (hover:none) and (pointer:coarse){.kl{display:none}}
   @media (prefers-reduced-motion:reduce){#ui,#hint,#msg{transition:none}}
@@ -141,7 +155,7 @@
     <button id="bFol" title="Follow the largest form near the centre of the view, or let go of the one you follow (key F).">&#9678; Follow</button>
     <button id="bZoom" title="Back to the default zoom (key 0).">&#8982; Zoom 1:1</button>
   </div>
-  <div class="lbl kl">keys &middot; f follow &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
+  <div class="lbl kl">keys &middot; f follow &middot; j life &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
   <div class="lbl">interaction matrix &middot; drag cells &updownarrow;</div>
   <div id="mx" tabindex="0" role="group" aria-label="Interaction matrix. Arrow keys choose a cell, plus and minus change it."></div>
 </div>
@@ -153,6 +167,14 @@
   <button id="bLive" aria-label="Back to live" title="Back to live (L)">&#9197;</button>
 </div>
 <div id="hud"></div>
+<section id="life" class="glass" aria-labelledby="lifeT" hidden>
+  <div class="lh"><h2 id="lifeT">LIFE</h2><span id="lifeAge">0:00</span>
+    <button id="lifeX" aria-label="Close the life story (J)" title="close (J)">&#10005;</button></div>
+  <div id="lifeStat"></div>
+  <canvas id="lifeC" aria-hidden="true"></canvas>
+  <ol id="lifeEv" aria-label="Events in this life"></ol>
+  <div id="lifeLive" class="sr" role="status" aria-live="polite"></div>
+</section>
 <div id="hint">drag empty space to look around &middot; click a form to follow it &middot; drag it to tow &middot; scroll to zoom &middot; rewind on the timeline</div>
 <div id="msg" role="status" aria-live="polite"></div>
 <div id="about" role="dialog" aria-modal="true" aria-labelledby="abT"><div class="card">
@@ -178,6 +200,11 @@
   one, only a lasting merger slowly does. In <b>Look</b> mode, <b>drag</b> a form to tow it: every particle in it receives the very same
   push, so its shape and its own motion stay intact. In <b>Push</b> and <b>Pull</b> mode, dragging stirs the
   swarm as in Primordium; right-drag still looks around.</p>
+  <h3>Life</h3>
+  <p>While you follow a form, its <b>life story</b> builds up top right: its age, its size over time in the
+  colours of its species, how much of it is still the form you picked, and what happened to it &mdash;
+  brushing past another form, merging, splitting, being swallowed, dissolving. Rewind and the story goes
+  back with you.</p>
   <h3>Time</h3>
   <p>The last 60 seconds are kept, rules and all: rewind past a Mutate or a slider change and the grid and
   sliders go back with it. Press play and history continues from that moment. Leave it alone and exactly the
@@ -191,6 +218,7 @@
   <code>e</code> evolve &middot; <code>p</code> palette &middot; <code>a</code> sound &middot;
   <code>n</code> respawn &middot; <code>s</code> save PNG &middot; <code>h</code> hide panel &middot;
   <code>i</code> this panel &middot; <code>f</code> follow &middot; <code>esc</code> let go &middot;
+  <code>j</code> life story &middot;
   <code>,</code> <code>.</code> step in time &middot; <code>l</code> live &middot; arrows look around &middot;
   <code>shift</code>+arrows tow &middot; <code>+</code> <code>&minus;</code> <code>0</code> zoom</p>
   <p class="cr">A single self-contained HTML file &middot; no libraries, no network, no assets. Built with Claude.</p>
@@ -295,6 +323,7 @@ function resetWorld(){
   prevX=new Float32Array(n);prevY=new Float32Array(n);prevOK=false;
   S.tX=S.camX;S.tY=S.camY;S.cvx=S.cvy=S.fvx=S.fvy=0;VW.ox=VW.oy=0;
   gridDims();zoomBounds();spawnPositions();
+  LIFE=null;lifeHidden=false;
   S.step=0;mode="live";view=0;viewOX=viewOY=0;tow.on=false;stir.on=false;hover=null;drag=null;lost=false;
   histReset();pushSnap();clearTrails();uiRv=-1;
 }
@@ -425,6 +454,7 @@ function tick(){
   }
   const n=S.n,x=S.x,y=S.y,vx=S.vx,vy=S.vy;
   for(let i=0;i<n;i++){x[i]+=vx[i]*dt;y[i]+=vy[i]*dt;}
+  if(LIFE&&LIFE.end===null&&!S.folN)lifeEnd("let go");
   if(S.folN&&!tow.on&&S.step%15===0)refollow();
   camera(dt);
   renew();
@@ -488,8 +518,8 @@ function bond(hit){
   S.fol.set(hit.list);S.folW.fill(1,0,hit.n);S.folN=hit.n;
 }
 function refollow(){
-  const old=S.fol,on=S.folN,A=S.aff;let wt=0;
-  for(let q=0;q<on;q++)wt+=A[old[q]];
+  const old=S.fol,on=S.folN,A=S.aff;let wt=0,prevCore=0;
+  for(let q=0;q<on;q++){const a=A[old[q]];wt+=a;if(a>=CORE)prevCore++;}
   gen++;let qt=0,bA=0,bB=0,bSc=0,bT=false;
   for(let q=0;q<on;q++){
     const s=old[q];if(stamp[s]===gen)continue;
@@ -497,20 +527,94 @@ function refollow(){
     let sc=0;for(let r=a;r<qt;r++)sc+=A[queue[r]];
     if(sc>bSc){bSc=sc;bA=a;bB=qt;bT=bfsTrunc;}
   }
-  let k=0;gen++;
+  let k=0;gen++;const big=bT||bB-bA>CAP;
   if(bSc>=0.3*wt&&bB-bA>=MINBODY){
     // swallowed by a mass larger than a form can be: only particles bonded to the form stay in it
-    const big=bT||bB-bA>CAP;
     for(let r=bA;r<bB&&k<CAP;r++){const i=queue[r];if(big&&!(A[i]>0))continue;folTmp[k++]=i;stamp[i]=gen;}
   }
-  if(k<MINBODY){S.folN=0;lost=true;return;}
+  if(k<MINBODY){S.folN=0;lost=true;lifeEnd("dissolved");return;}
+  // what happened, for the life story: who arrived for the first time, and how much core was left behind
+  const newIds=[];for(let q=0;q<k;q++)if(!(A[folTmp[q]]>0))newIds.push(folTmp[q]);
+  let lostCore=0;for(let q=0;q<on;q++){const i=old[q];if(stamp[i]!==gen&&A[i]>=CORE)lostCore++;}
   for(let i=0,n=S.n;i<n;i++){   // the bond grows inside the form and fades outside it
     if(stamp[i]===gen)A[i]=A[i]>0?Math.min(1,A[i]+W_GROW):W_NEW;
     else if(A[i]>0){A[i]*=W_FADE;if(A[i]<0.02)A[i]=0;}
   }
   S.fol.set(folTmp.subarray(0,k));for(let q=0;q<k;q++)S.folW[q]=A[folTmp[q]];S.folN=k;
+  lifeStep(prevCore,lostCore,newIds,big);
 }
 function coreSize(w,cnt){let c=0;for(let q=0;q<cnt;q++)if(w[q]>=CORE)c++;return c;}
+
+// ---- the life story of the followed form ----
+// Written during the steps, four samples a second (size, how much is still the form you picked, its
+// species), plus the events. Snapshots remember how far the story had come, so rewinding winds it
+// back and replaying writes the same story again.
+let LIFE=null,lifeHidden=false;
+const LIFE_MAX=14400;   // an hour of samples; after that only events are kept
+function lifeNew(hit,how){
+  const L=LIFE={start:S.step,orig:new Uint8Array(S.n),k:P.k,steps:[],core:[],own:[],mem:[],spc:[],
+    events:[],pending:[],splitP:null,brushP:null,end:null,big:false,bigLog:-1e9};
+  for(let q=0;q<hit.n;q++)L.orig[hit.list[q]]=1;
+  lifeHidden=false;lifeSample();
+  lifeEv(how,(how==="towed"?"grabbed and towed":"picked")+" · "+hit.n+" particles");
+}
+function lifeEv(type,text,at){
+  LIFE.events.push({s:S.step,at:at==null?S.step:at,type,text});
+  if(mode==="live"&&!lifeHidden)$("lifeLive").textContent=text;
+}
+function lifeEnd(how){
+  const L=LIFE;if(!L||L.end!==null)return;
+  L.splitP=null;   // a break-up still settling is told by the end itself
+  if(L.brushP){lifeBrushTell(L);L.brushP=null;}
+  lifeEv(how,how);L.end=S.step;
+}
+function lifeBrushTell(L){const b=L.brushP;
+  lifeEv("brush",b.count===1?"brushed past a form of "+b.maxN+", stayed itself":
+    "brushed past "+b.count+" forms (largest "+b.maxN+"), stayed itself",b.at);}
+function lifeSample(){
+  const L=LIFE;if(L.steps.length>=LIFE_MAX)return;
+  const k=L.k,sp=new Array(k).fill(0);let core=0,own=0;
+  for(let q=0;q<S.folN;q++){if(S.folW[q]<CORE)continue;const i=S.fol[q];core++;own+=L.orig[i];sp[S.typ[i]]++;}
+  L.steps.push(S.step);L.core.push(core);L.own.push(own);L.mem.push(S.folN);for(let t=0;t<k;t++)L.spc.push(sp[t]);
+}
+// Called right after a re-identification: stamp[i]===gen still marks the form's members.
+function lifeStep(prevCore,lostCore,newIds,big){
+  const L=LIFE;if(!L||L.end!==null)return;
+  lifeSample();
+  // in and out of a mass is one event: told at most once per 10 s
+  if(big&&!L.big&&S.step-L.bigLog>=10*SPS){lifeEv("swallowed","swallowed by a larger mass");L.bigLog=S.step;}
+  L.big=big;
+  // a break-up often takes a few re-identifications: told as one split once it has settled for 1 s
+  if(lostCore>=Math.max(6,0.25*prevCore)){const p=L.splitP;
+    L.splitP={at:p?p.at:S.step,from:p?p.from:prevCore,lost:(p?p.lost:0)+lostCore,last:S.step};}
+  if(L.splitP&&S.step-L.splitP.last>=SPS){
+    lifeEv("split","split · lost "+Math.min(L.splitP.lost,L.splitP.from)+" of "+L.splitP.from,L.splitP.at);L.splitP=null;}
+  // a crowd of first-time arrivals is a contact; whether it was a brush or a merger shows later
+  let P2=L.pending;
+  if(newIds.length>=Math.max(12,0.3*prevCore)){
+    P2=P2.concat([{at:S.step,n:newIds.length,ids:Int32Array.from(newIds)}]);if(P2.length>6)P2=P2.slice(-6);
+  }
+  if(P2.length&&!big){
+    const keep=[];
+    for(const c of P2){
+      let inside=0;for(const i of c.ids)if(stamp[i]===gen)inside++;
+      const f=inside/c.n,age=S.step-c.at;
+      if(f<0.25){const b=L.brushP;   // brushes in a row are gathered into one line
+        L.brushP={at:b?b.at:c.at,count:(b?b.count:0)+1,maxN:Math.max(b?b.maxN:0,c.n),last:S.step};}
+      else if((age>=240&&f>=0.5)||age>=720)lifeEv("merge","merged with a form of "+c.n,c.at);
+      else keep.push(c);
+    }
+    if(keep.length!==P2.length)P2=keep;
+  }
+  L.pending=P2;   // never changed in place: snapshots keep the old list
+  if(L.brushP&&S.step-L.brushP.last>=3*SPS){lifeBrushTell(L);L.brushP=null;}
+}
+// clicking or grabbing the form you already follow keeps its life going
+function samePick(hit){
+  if(!LIFE||LIFE.end!==null||!S.folN)return false;
+  let c=0;for(let q=0;q<hit.n;q++)if(S.aff[hit.list[q]]>=CORE)c++;
+  return c>=0.5*Math.min(hit.n,Math.max(1,coreSize(S.folW,S.folN)));
+}
 
 function pickAt(sx,sy){
   const d=displayState(),n=S.n,Lx=S.Lx,Ly=S.Ly;
@@ -556,6 +660,7 @@ function pushSnap(){
   s.tX=S.tX;s.tY=S.tY;s.cvx=S.cvx;s.cvy=S.cvy;s.fvx=S.fvx;s.fvy=S.fvy;
   s.m.set(mat);s.rN=P.rN;s.force=P.force;s.fhl=P.fhl;s.beta=P.beta;s.dt=P.dt;
   s.evo=S.evo;s.seed=S.seed;s.custom=S.custom;s.rv=S.rv;
+  s.life=LIFE;if(LIFE){s.lifeS=LIFE.steps.length;s.lifeE=LIFE.events.length;s.lifeP=LIFE.pending;s.lifeSp=LIFE.splitP;s.lifeBp=LIFE.brushP;s.lifeEnd=LIFE.end;s.lifeBig=LIFE.big;s.lifeBl=LIFE.bigLog;}
 }
 function restore(i){
   const s=snapAt(i),n=S.n,f=s.f;
@@ -567,6 +672,10 @@ function restore(i){
   mat.set(s.m);P.force=s.force;P.fhl=s.fhl;P.beta=s.beta;P.dt=s.dt;
   S.evo=s.evo;S.seed=s.seed;S.custom=s.custom;S.rv=s.rv;
   if(P.rN!==s.rN){P.rN=s.rN;setRM();}
+  LIFE=s.life;   // the story winds back to where it was
+  if(LIFE){const L=LIFE,m=s.lifeS;L.steps.length=L.core.length=L.own.length=L.mem.length=m;L.spc.length=m*L.k;
+    L.events.length=s.lifeE;L.pending=s.lifeP;L.splitP=s.lifeSp;L.brushP=s.lifeBp;
+    L.end=s.lifeEnd;L.big=s.lifeBig;L.bigLog=s.lifeBl;}
   hCount=i+1;   // the old future is gone: history continues from here
 }
 // leave the past and continue from the moment on screen
@@ -915,7 +1024,9 @@ function setZoom(nz,sx,sy){   // keeps the world point under (sx,sy) in place
 }
 // touching a form, also in the past, sets time flowing again from that moment
 function follow(hit){
-  live();bond(hit);
+  live();
+  if(samePick(hit)){lifeHidden=false;msg("Still following this form.");return;}
+  bond(hit);lifeNew(hit,"picked");
   msg("Following a form of "+hit.n+" particles.");
 }
 function unfollow(){if(mode==="live"&&S.folN){S.folN=0;msg("Let go.");}}
@@ -928,7 +1039,9 @@ function startTow(hit,sx,sy){
   body(tow.list,tow.n,S.x,S.y);
   tow.ox=wd(B.x-(VW.x+(sx-W/2)/zoom),S.Lx);tow.oy=wd(B.y-(VW.y+(sy-H/2)/zoom),S.Ly);
   tow.sx=sx;tow.sy=sy;tow.on=true;
-  bond(hit);   // once released, the camera follows it
+  // once released, the camera follows it; towing the form you follow is a chapter of its life
+  if(samePick(hit))lifeEv("tow","towed by you");
+  else{bond(hit);lifeNew(hit,"towed");}
 }
 function beginStir(sx,sy){live();stir.on=true;stir.sx=sx;stir.sy=sy;pushTrail(sx,sy);}
 function edgeScroll(){   // towing to the edge of the screen carries the view along
@@ -1048,6 +1161,7 @@ addEventListener("keydown",e=>{
   else if(c==="i")openAbout();
   else if(c==="f")toggleFollow();
   else if(c==="l")goLive();
+  else if(c==="j")toggleLife();
 });
 addEventListener("keyup",e=>{shift=e.shiftKey;held.delete(e.key);});
 addEventListener("blur",()=>{held.clear();shift=false;});
@@ -1124,7 +1238,78 @@ function updHud(t){
     (f?"following · "+f:"free camera")+(mode==="review"?" · past":"");
   const fb=$("bFol"),on=mode==="live"&&S.folN>0;
   fb.classList.toggle("on",on);fb.innerHTML=on?"&#9678; Let go":"&#9678; Follow";
+  updLife();
 }
+
+// ---- the life card ----
+// Live it shows the story so far. Looking at the past it shows the story as it stood then: the chart
+// keeps the whole known life with a cursor at that moment, the list stops there.
+const clock=st=>{const s=Math.max(0,Math.round(st/SPS));return (s/60|0)+":"+String(s%60).padStart(2,"0");};
+const EV_MARK={picked:"#ffffff",towed:"#ffffff",tow:"#ffd24a",merge:"#39e0c8",brush:"#a5bbb5",
+  split:"#ffb04a",swallowed:"#c98bd6",dissolved:"#ff6b6b","let go":"#a5bbb5"};
+let lifeKey="",lifeListKey="";
+function updLife(){
+  let L=null,nS=0,nE=0,end=null,now=0,full=0;
+  if(mode==="live"){L=LIFE;if(L){nS=full=L.steps.length;nE=L.events.length;end=L.end;now=S.step;}}
+  else{const s=snapAt(Math.max(0,Math.min(hCount-1,Math.round(view))));L=s.life;
+    if(L){nS=s.lifeS;nE=s.lifeE;end=s.lifeEnd;now=s.step;full=L===LIFE?L.steps.length:nS;}}
+  const card=$("life");
+  if(!L||lifeHidden||!nS){if(!card.hidden)card.hidden=true;return;}
+  if(card.hidden){card.hidden=false;lifeKey=lifeListKey="";}
+  const key=[L.start,nS,nE,end,now,full,pal].join();
+  if(key===lifeKey)return;lifeKey=key;
+  const j=nS-1,core=L.core[j],own=L.own[j];
+  $("lifeAge").textContent=clock((end!==null?end:now)-L.start);
+  const last=nE?L.events[nE-1]:null;
+  $("lifeStat").textContent=end!==null&&last?last.text+" at "+clock(end-L.start):
+    core+" particles · "+Math.round(own/Math.max(1,core)*100)+"% original";
+  lifeChart(L,full,nS,now);
+  const lk=L.start+","+nE;
+  if(lk!==lifeListKey){lifeListKey=lk;
+    const ol=$("lifeEv");ol.innerHTML="";
+    // in order of when it happened: a brush is only recognised once the other form has gone again
+    const evs=L.events.slice(0,nE).sort((a,b)=>a.at-b.at);
+    for(const e of evs){const li=document.createElement("li"),tm=document.createElement("time"),sp=document.createElement("span");
+      tm.textContent=clock(e.at-L.start);sp.textContent=e.text;li.appendChild(tm);li.appendChild(sp);ol.appendChild(li);}
+    ol.scrollTop=ol.scrollHeight;}
+}
+// size over time, stacked by species; events as marks along the bottom
+function lifeChart(L,full,nS,now){
+  const c=$("lifeC"),dpr=Math.min(2,window.devicePixelRatio||1),w=c.clientWidth,h=c.clientHeight;
+  if(!w||!h)return;
+  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}
+  const g=c.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+  if(!full)return;
+  const k=L.k,t0=L.start,t1=Math.max(t0+5*SPS,L.steps[full-1],now),span=t1-t0,base=h-9,ph=base-4;
+  let mx=1;for(let q=0;q<full;q++)if(L.core[q]>mx)mx=L.core[q];
+  const X=st=>(st-t0)/span*(w-1);
+  let q=0;
+  for(let px=0;px<w;px++){   // one column per pixel: the latest sample up to that moment
+    const tp=t0+px/(w-1)*span;
+    while(q+1<full&&L.steps[q+1]<=tp)q++;
+    if(L.steps[q]>tp)continue;
+    if(q===full-1&&tp>L.steps[q]+15)break;
+    g.globalAlpha=q<nS?0.9:0.28;   // past the cursor: the future that followed, dimmed
+    let y=base;
+    for(let t=0;t<k;t++){const v=L.spc[q*k+t];if(!v)continue;const hh=v/mx*ph;g.fillStyle=cols_[t%cols_.length];g.fillRect(px,y-hh,1,hh);y-=hh;}
+  }
+  g.globalAlpha=1;
+  for(const e of L.events){   // only events written by the moment on screen are marked
+    if(e.s>now)break;
+    const x=X(e.at);g.fillStyle=EV_MARK[e.type]||"#fff";g.beginPath();
+    if(e.type==="merge"){g.moveTo(x,h-8);g.lineTo(x+3.5,h-2);g.lineTo(x-3.5,h-2);}
+    else if(e.type==="split"){g.moveTo(x,h-2);g.lineTo(x+3.5,h-8);g.lineTo(x-3.5,h-8);}
+    else if(e.type==="dissolved"||e.type==="let go"){g.rect(x-1,h-9,2,8);}
+    else g.arc(x,h-5,2.6,0,TAU);
+    g.fill();
+  }
+  if(mode==="review"){const x=X(now);g.strokeStyle="#ffd24a";g.lineWidth=1;g.beginPath();g.moveTo(x+.5,0);g.lineTo(x+.5,base);g.stroke();}
+}
+function toggleLife(){
+  lifeHidden=!lifeHidden;updLife();
+  if(!lifeHidden&&$("life").hidden)msg("No life story yet: follow a form first.");
+}
+$("lifeX").onclick=()=>{lifeHidden=true;updLife();};
 
 // ---- loop ----
 let last=performance.now(),acc=0,fps=60;

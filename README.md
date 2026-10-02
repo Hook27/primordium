@@ -60,6 +60,11 @@ there is always new soup ahead.
   you picked, 0.01 for a newcomer that grows to 1 over about 8 s of staying, fading slowly while apart.
   So a form that brushes past a bigger one and parts again stays itself, and only a lasting merger
   slowly becomes the form; swallowed by a larger mass, it is tracked by its own particles inside it.
+- **Life story** — while you follow a form, a card tells its life: age, size over time in the colours
+  of its species, how much of it is still the form you picked, and the events, recognised as they
+  happen — brushing past other forms (gathered when several follow in a row), merging, splitting,
+  being swallowed by a larger mass, dissolving. Snapshots remember how far the story had come, so it
+  winds back when you rewind, and an untouched replay writes the same story again.
 - **Tow** — drag a form and every particle in it gets the same velocity change, so its shape and its own
   motion stay intact. In Push / Pull mode, dragging stirs the swarm as in Primordium.
 - **Rewind** — the last 60 seconds are kept as exact snapshots (positions, velocities, species, the
