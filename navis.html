@@ -51,6 +51,15 @@
   .seed input{flex:1;min-width:0;background:#0c1320;border:1px solid var(--line);color:#c9fff4;
     border-radius:6px;padding:5px 6px;font-family:inherit;font-size:10.5px}
   .seed button{padding:5px 8px}
+  .food{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:7px;font-size:10.5px;color:var(--mut)}
+  .food .fl{margin-right:2px}
+  .sw{position:relative;display:inline-flex;cursor:pointer}
+  .sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .sw span{display:inline-block;min-width:18px;height:18px;border-radius:5px;border:2px solid transparent;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+  .sw.mix span{padding:0 5px;line-height:14px;font-size:10px;color:#e6fbf6;background:#141d30}
+  .sw input:checked+span{border-color:#fff}
+  .sw input:focus-visible+span{outline:2px solid var(--focus);outline-offset:2px}
   .lbl{font-size:9.5px;color:var(--mut);margin-top:9px;text-transform:uppercase;letter-spacing:1.5px;line-height:1.6}
   #mx{display:grid;gap:2px;margin:6px auto 2px;max-width:210px;touch-action:none;user-select:none;border-radius:3px}
   #mx div{aspect-ratio:1;border-radius:2px;cursor:ns-resize}
@@ -99,6 +108,7 @@
   #lifeEv{list-style:none;margin-top:6px;max-height:7.6em;overflow:auto;line-height:1.55;color:#c9dbd6}
   #lifeEv li{display:flex;gap:7px}
   #lifeEv time{color:var(--mut);min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+  #lifeEv .chip{flex:none;width:9px;height:9px;margin-top:5px;border-radius:2px}
   #lifeEv::-webkit-scrollbar{width:5px}#lifeEv::-webkit-scrollbar-thumb{background:#1f2c46;border-radius:3px}
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   @media (max-width:1180px){#hud{bottom:64px}#hint,#msg{bottom:112px}}
@@ -154,8 +164,10 @@
   <div class="btns" style="margin-top:5px">
     <button id="bFol" title="Follow the largest form near the centre of the view, or let go of the one you follow (key F).">&#9678; Follow</button>
     <button id="bZoom" title="Back to the default zoom (key 0).">&#8982; Zoom 1:1</button>
+    <button id="bFeed" style="grid-column:1/3" title="Drop a portion of 20 particles in a ring around the form you follow (key G). In Feed mode you can also strew food with the mouse.">&#127793; Feed the form</button>
   </div>
-  <div class="lbl kl">keys &middot; f follow &middot; j life &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
+  <div class="food" id="food" role="radiogroup" aria-label="Food: which species to feed"></div>
+  <div class="lbl kl">keys &middot; f follow &middot; g feed &middot; j life &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
   <div class="lbl">interaction matrix &middot; drag cells &updownarrow;</div>
   <div id="mx" tabindex="0" role="group" aria-label="Interaction matrix. Arrow keys choose a cell, plus and minus change it."></div>
 </div>
@@ -205,6 +217,12 @@
   colours of its species, how much of it is still the form you picked, and what happened to it &mdash;
   brushing past another form, merging, splitting, being swallowed, dissolving. Rewind and the story goes
   back with you.</p>
+  <h3>Feeding</h3>
+  <p><b>Feed the form</b> (or <code>g</code>) drops twenty particles in a ring around the form you follow;
+  in <b>Feed</b> mode a click drops a handful under the cursor and holding strews more. Pick a species
+  under <b>food</b>, or a mix, and watch whether the form takes it in and changes colour; the life story
+  tells you how much it took. Food is never made: it is fetched from far out of sight, so the number of
+  particles stays the same.</p>
   <h3>Time</h3>
   <p>The last 60 seconds are kept, rules and all: rewind past a Mutate or a slider change and the grid and
   sliders go back with it. Press play and history continues from that moment. Leave it alone and exactly the
@@ -218,7 +236,7 @@
   <code>e</code> evolve &middot; <code>p</code> palette &middot; <code>a</code> sound &middot;
   <code>n</code> respawn &middot; <code>s</code> save PNG &middot; <code>h</code> hide panel &middot;
   <code>i</code> this panel &middot; <code>f</code> follow &middot; <code>esc</code> let go &middot;
-  <code>j</code> life story &middot;
+  <code>j</code> life story &middot; <code>g</code> feed &middot;
   <code>,</code> <code>.</code> step in time &middot; <code>l</code> live &middot; arrows look around &middot;
   <code>shift</code>+arrows tow &middot; <code>+</code> <code>&minus;</code> <code>0</code> zoom</p>
   <p class="cr">A single self-contained HTML file &middot; no libraries, no network, no assets. Built with Claude.</p>
@@ -553,18 +571,26 @@ let LIFE=null,lifeHidden=false;
 const LIFE_MAX=14400;   // an hour of samples; after that only events are kept
 function lifeNew(hit,how){
   const L=LIFE={start:S.step,orig:new Uint8Array(S.n),k:P.k,steps:[],core:[],own:[],mem:[],spc:[],
-    events:[],pending:[],splitP:null,brushP:null,end:null,big:false,bigLog:-1e9};
+    events:[],pending:[],splitP:null,brushP:null,mealP:null,end:null,big:false,bigLog:-1e9};
   for(let q=0;q<hit.n;q++)L.orig[hit.list[q]]=1;
   lifeHidden=false;lifeSample();
   lifeEv(how,(how==="towed"?"grabbed and towed":"picked")+" · "+hit.n+" particles");
 }
-function lifeEv(type,text,at){
-  LIFE.events.push({s:S.step,at:at==null?S.step:at,type,text});
+function lifeEv(type,text,at,sp){
+  LIFE.events.push({s:S.step,at:at==null?S.step:at,type,text,sp:sp==null?-1:sp});
   if(mode==="live"&&!lifeHidden)$("lifeLive").textContent=text;
+}
+// food dropped at the followed form (not elsewhere) is a meal; what it took in shows 5 s later
+function lifeFeed(ids,wx,wy){
+  const L=LIFE;if(!L||L.end!==null||!S.folN||!ids.length)return;
+  const r=formRadius();if(Math.hypot(wd(wx-B.x,S.Lx),wd(wy-B.y,S.Ly))>r+2.5*RM)return;
+  const sp=foodSp>=0&&foodSp<P.k?foodSp:-1,m=L.mealP;
+  let all=Int32Array.from(ids);if(m){all=new Int32Array(m.ids.length+ids.length);all.set(m.ids);all.set(ids,m.ids.length);}
+  L.mealP={at:m?m.at:S.step,ids:all,sp:m&&m.sp!==sp?-1:sp,last:S.step};   // a new record: snapshots keep the old one
 }
 function lifeEnd(how){
   const L=LIFE;if(!L||L.end!==null)return;
-  L.splitP=null;   // a break-up still settling is told by the end itself
+  L.splitP=null;L.mealP=null;   // a break-up or a meal still settling is told by the end itself
   if(L.brushP){lifeBrushTell(L);L.brushP=null;}
   lifeEv(how,how);L.end=S.step;
 }
@@ -589,6 +615,14 @@ function lifeStep(prevCore,lostCore,newIds,big){
     L.splitP={at:p?p.at:S.step,from:p?p.from:prevCore,lost:(p?p.lost:0)+lostCore,last:S.step};}
   if(L.splitP&&S.step-L.splitP.last>=SPS){
     lifeEv("split","split · lost "+Math.min(L.splitP.lost,L.splitP.from)+" of "+L.splitP.from,L.splitP.at);L.splitP=null;}
+  // a meal: once the food has had 5 s, count what of it became the form's own
+  if(L.mealP){const m=L.mealP;
+    if(S.step-m.last>=5*SPS){let took=0;for(const i of m.ids)if(stamp[i]===gen&&S.aff[i]>=CORE)took++;
+      lifeEv("feed","fed "+m.ids.length+(m.sp>=0?" particles of species "+(m.sp+1):" mixed particles")+
+        " · "+(took?"took in "+took:"left it"),m.at,m.sp);
+      L.mealP=null;}
+    else{const fed=new Set(m.ids);newIds=newIds.filter(i=>!fed.has(i));}   // food is no contact
+  }
   // a crowd of first-time arrivals is a contact; whether it was a brush or a merger shows later
   let P2=L.pending;
   if(newIds.length>=Math.max(12,0.3*prevCore)){
@@ -660,7 +694,7 @@ function pushSnap(){
   s.tX=S.tX;s.tY=S.tY;s.cvx=S.cvx;s.cvy=S.cvy;s.fvx=S.fvx;s.fvy=S.fvy;
   s.m.set(mat);s.rN=P.rN;s.force=P.force;s.fhl=P.fhl;s.beta=P.beta;s.dt=P.dt;
   s.evo=S.evo;s.seed=S.seed;s.custom=S.custom;s.rv=S.rv;
-  s.life=LIFE;if(LIFE){s.lifeS=LIFE.steps.length;s.lifeE=LIFE.events.length;s.lifeP=LIFE.pending;s.lifeSp=LIFE.splitP;s.lifeBp=LIFE.brushP;s.lifeEnd=LIFE.end;s.lifeBig=LIFE.big;s.lifeBl=LIFE.bigLog;}
+  s.life=LIFE;if(LIFE){s.lifeS=LIFE.steps.length;s.lifeE=LIFE.events.length;s.lifeP=LIFE.pending;s.lifeSp=LIFE.splitP;s.lifeBp=LIFE.brushP;s.lifeMp=LIFE.mealP;s.lifeEnd=LIFE.end;s.lifeBig=LIFE.big;s.lifeBl=LIFE.bigLog;}
 }
 function restore(i){
   const s=snapAt(i),n=S.n,f=s.f;
@@ -674,7 +708,7 @@ function restore(i){
   if(P.rN!==s.rN){P.rN=s.rN;setRM();}
   LIFE=s.life;   // the story winds back to where it was
   if(LIFE){const L=LIFE,m=s.lifeS;L.steps.length=L.core.length=L.own.length=L.mem.length=m;L.spc.length=m*L.k;
-    L.events.length=s.lifeE;L.pending=s.lifeP;L.splitP=s.lifeSp;L.brushP=s.lifeBp;
+    L.events.length=s.lifeE;L.pending=s.lifeP;L.splitP=s.lifeSp;L.brushP=s.lifeBp;L.mealP=s.lifeMp;
     L.end=s.lifeEnd;L.big=s.lifeBig;L.bigLog=s.lifeBl;}
   hCount=i+1;   // the old future is gone: history continues from here
 }
@@ -871,6 +905,14 @@ function drawOverlay(d){
       octx.beginPath();octx.arc(p.x,p.y,4+11*p.l,0,TAU);octx.fill();}
     octx.globalCompositeOperation="source-over";
   }
+  if(glows.length){   // a soft green ring where food just fell, widening as it fades
+    const now=performance.now();
+    for(let i=glows.length-1;i>=0;i--){const g=glows[i],a=(now-g.t)/700;
+      if(a>=1){glows.splice(i,1);continue;}
+      const sx=W/2+wr(g.x-d.cx,S.Lx)*zoom,sy=H/2+wr(g.y-d.cy,S.Ly)*zoom;
+      octx.strokeStyle="rgba(150,232,90,"+(0.55*(1-a)).toFixed(3)+")";octx.lineWidth=1.5;
+      octx.beginPath();octx.arc(sx,sy,Math.max(4,g.r*zoom*(0.8+0.5*a)),0,TAU);octx.stroke();}
+  }
 }
 
 // ---- audio: the swarm conducts a generative ambient piece (as in Primordium) ----
@@ -949,7 +991,7 @@ function applySlider(d,v){
 }
 function randSettings(){defs.forEach(d=>applySlider(d,Math.round((d.mn+Math.random()*(d.mx-d.mn))/d.st)*d.st));}
 function resetSettings(){defs.forEach(d=>applySlider(d,DEF[d.k]));}
-function onK(){buildColors();genSeed(S.seed);resetWorld();buildMx();}
+function onK(){buildColors();genSeed(S.seed);resetWorld();buildMx();buildFood();}
 
 // ---- interaction matrix editor: drag a cell up/down, or arrows + plus/minus from the keyboard ----
 const mx=$("mx");let mxCur=0,mdrag=null;
@@ -965,6 +1007,21 @@ function buildMx(){
     mx.appendChild(d);
   }
   uiRv=-1;
+}
+// the food swatches: a mix, or one species (radio buttons, so arrow keys pick one)
+function buildFood(){
+  const box=$("food");box.innerHTML='<span class="fl">food</span>';
+  if(foodSp>=P.k)foodSp=-1;
+  const add=(v,label,col)=>{
+    const l=document.createElement("label"),inp=document.createElement("input"),s=document.createElement("span");
+    l.className="sw"+(v<0?" mix":"");l.title=label;
+    inp.type="radio";inp.name="food";inp.value=v;inp.checked=v===foodSp;inp.setAttribute("aria-label",label);
+    inp.onchange=()=>{foodSp=v;};
+    if(v<0)s.textContent="mix";else s.style.background=col;
+    l.appendChild(inp);l.appendChild(s);box.appendChild(l);
+  };
+  add(-1,"Mixed food: all species");
+  for(let t=0;t<P.k;t++)add(t,"Food of species "+(t+1),cols_[t]);
 }
 function paintMx(M){const k=P.k;for(const d of mx.children)d.style.background=cellColor(M[(+d.dataset.i)*k+(+d.dataset.j)]);}
 function setCell(i,j,v){live();mat[i*P.k+j]=v<-1?-1:v>1?1:v;S.custom=true;rulesChanged();}
@@ -1050,12 +1107,59 @@ function edgeScroll(){   // towing to the edge of the screen carries the view al
   if(tow.sy<m)dy=-(m-tow.sy)/m;else if(tow.sy>H-m)dy=(tow.sy-H+m)/m;
   if(dx||dy)moveCam(dx*9/zoom,dy*9/zoom);
 }
-// mouse modes: Look (look around, tow forms) or Primordium's Push / Pull
+// ---- feeding ----
+// Food is not made but fetched: particles far out of sight (beyond the view and a margin) are moved to
+// the feeding spot, at rest and of the chosen species. The particle count never changes, and the soup
+// out of sight is renewed all the time anyway. Feeding is touching the world, so in the past time
+// flows on from that moment.
+let foodSp=-1,feedScan=0;   // -1: a mix of all species
+const feed={on:false,sx:0,sy:0,t:0},glows=[];
+function fetchFood(count){
+  const hw=W/2/zoom+RM,hh=H/2/zoom+RM,n=S.n,out=[];
+  for(let c=0;c<n&&out.length<count;c++){
+    const i=(feedScan+c)%n;
+    if(S.aff[i]>0)continue;   // never the form itself, nor what it lately held
+    if(Math.abs(wr(S.x[i]-VW.x,S.Lx))>hw||Math.abs(wr(S.y[i]-VW.y,S.Ly))>hh)out.push(i);
+  }
+  if(out.length)feedScan=(out[out.length-1]+1)%n;
+  return out;
+}
+// in a ring r0..r1 around (cx,cy); r0=0 makes it a disc
+function dropFood(ids,cx,cy,r0,r1){
+  const k=P.k;
+  for(const i of ids){
+    const a=Math.random()*TAU,r=Math.sqrt(r0*r0+Math.random()*(r1*r1-r0*r0));
+    S.x[i]=prevX[i]=cx+Math.cos(a)*r;S.y[i]=prevY[i]=cy+Math.sin(a)*r;   // no streak from where it came
+    S.vx[i]=0;S.vy[i]=0;S.typ[i]=foodSp>=0&&foodSp<k?foodSp:(Math.random()*k)|0;S.aff[i]=0;
+  }
+  glows.push({x:cx,y:cy,r:r1,t:performance.now()});
+}
+function feedAt(sx,sy,count){   // a handful under the cursor
+  live();
+  const wx=VW.x+(sx-W/2)/zoom,wy=VW.y+(sy-H/2)/zoom,ids=fetchFood(count);
+  if(!ids.length)return;
+  dropFood(ids,wx,wy,0,0.45*RM);lifeFeed(ids,wx,wy);
+}
+function feedPortion(){   // twenty in a ring around the followed form
+  live();
+  if(!S.folN){msg("Follow a form first, or switch the mouse to Feed to strew food anywhere.");return;}
+  const ids=fetchFood(20);if(!ids.length){msg("No food out of sight right now: zoom in a little.");return;}
+  const r=formRadius();dropFood(ids,B.x,B.y,r+0.25*RM,r+1.05*RM);lifeFeed(ids,B.x,B.y);
+}
+// centre (in B) and rms radius of the followed form's core
+function formRadius(){
+  body(S.fol,S.folN,S.x,S.y,S.folW);let s=0,c=0;
+  for(let q=0;q<S.folN;q++){if(S.folW[q]<CORE)continue;const i=S.fol[q],dx=wd(S.x[i]-B.x,S.Lx),dy=wd(S.y[i]-B.y,S.Ly);s+=dx*dx+dy*dy;c++;}
+  return c?Math.sqrt(s/c):0;
+}
+
+// mouse modes: Look (look around, tow forms), Primordium's Push / Pull, or Feed
 let mm=0;
 const MM=[["&#128065; Look","Drag empty space to look around, drag a form to tow it. Click to switch to Push."],
   ["&#9995; Push","Drag to push the swarm away, as in Primordium; right-drag looks around. Click to switch to Pull."],
-  ["&#129522; Pull","Drag to pull the swarm in; right-drag looks around. Click to switch to Look."]];
-function cycleMouse(){mm=(mm+1)%3;const b=$("bMouse");b.innerHTML=MM[mm][0];b.title=MM[mm][1];
+  ["&#129522; Pull","Drag to pull the swarm in; right-drag looks around. Click to switch to Feed."],
+  ["&#127793; Feed","Click to drop a handful of food, hold to strew it, of the species chosen under food; right-drag looks around. Click to switch to Look."]];
+function cycleMouse(){mm=(mm+1)%4;const b=$("bMouse");b.innerHTML=MM[mm][0];b.title=MM[mm][1];
   stir.mode=mm===2?-1:1;setCursor();}
 
 const ptrs=new Map(),pointer={x:0,y:0,in:false};
@@ -1064,11 +1168,14 @@ function setCursor(){cv.className=drag&&drag.kind==="pan"&&drag.moved?"panning":
 cv.addEventListener("contextmenu",e=>e.preventDefault());
 cv.addEventListener("pointerdown",e=>{
   cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});hideHint();
-  if(ptrs.size===2){tow.on=false;stir.on=false;const [a,b]=[...ptrs.values()];
+  if(ptrs.size===2){tow.on=false;stir.on=false;feed.on=false;const [a,b]=[...ptrs.values()];
     drag={kind:"pinch",d0:Math.hypot(a.x-b.x,a.y-b.y)||1,z0:zoom};return;}
   if(ptrs.size>2)return;
   const base={x0:e.clientX,y0:e.clientY,lx:e.clientX,ly:e.clientY,moved:false};
   if(e.button===1||e.button===2){drag=Object.assign({kind:"pan"},base);setCursor();return;}
+  if(mm===3){drag=Object.assign({kind:"feed"},base);
+    feed.on=true;feed.sx=e.clientX;feed.sy=e.clientY;feed.t=performance.now();feedAt(e.clientX,e.clientY,6);
+    setCursor();return;}
   const hit=pickAt(e.clientX,e.clientY);
   if(mm===0)drag=Object.assign({kind:hit?"grab":"pan",hit},base);
   else{drag=Object.assign({kind:"stir",hit},base);if(!hit)beginStir(e.clientX,e.clientY);}
@@ -1080,6 +1187,7 @@ cv.addEventListener("pointermove",e=>{
   if(!drag)return;
   if(drag.kind==="pinch"){if(ptrs.size<2)return;const [a,b]=[...ptrs.values()];
     setZoom(drag.z0*Math.hypot(a.x-b.x,a.y-b.y)/drag.d0,(a.x+b.x)/2,(a.y+b.y)/2);return;}
+  if(drag.kind==="feed"){feed.sx=e.clientX;feed.sy=e.clientY;return;}
   if(!drag.moved&&Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)<5)return;
   if(drag.kind==="pan"){drag.moved=true;panBy(e.clientX-drag.lx,e.clientY-drag.ly);drag.lx=e.clientX;drag.ly=e.clientY;}
   else if(drag.kind==="stir"){drag.moved=true;if(!stir.on)beginStir(e.clientX,e.clientY);
@@ -1091,6 +1199,7 @@ function pointerUp(e){
   if(!ptrs.delete(e.pointerId)||!drag)return;
   if(drag.kind==="grab"){if(drag.moved)tow.on=false;else follow(drag.hit);}
   else if(drag.kind==="stir"){stir.on=false;if(!drag.moved&&drag.hit)follow(drag.hit);}
+  else if(drag.kind==="feed")feed.on=false;
   else if(drag.kind==="pan"&&!drag.moved)unfollow();
   drag=null;setCursor();
 }
@@ -1162,12 +1271,13 @@ addEventListener("keydown",e=>{
   else if(c==="f")toggleFollow();
   else if(c==="l")goLive();
   else if(c==="j")toggleLife();
+  else if(c==="g")feedPortion();
 });
 addEventListener("keyup",e=>{shift=e.shiftKey;held.delete(e.key);});
 addEventListener("blur",()=>{held.clear();shift=false;});
 
 // ---- panel wiring ----
-function cyclePal(){pal=(pal+1)%pals.length;buildColors();buildMx();}
+function cyclePal(){pal=(pal+1)%pals.length;buildColors();buildMx();buildFood();}
 function snap(){const a=document.createElement("a"),
   t=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,19).replace(/[-:]/g,"").replace("T","-");
   a.download="navis_"+(S.custom?"custom":S.seed.toString(36))+"_"+t+".png";a.href=cv.toDataURL("image/png");a.click();}
@@ -1205,6 +1315,7 @@ $("bSeed").onclick=doLoad;
 $("seedIn").addEventListener("keydown",e=>{if(e.key==="Enter")doLoad();});
 $("bFol").onclick=toggleFollow;
 $("bZoom").onclick=()=>setZoom(z0(),null);
+$("bFeed").onclick=feedPortion;
 $("bPlay").onclick=togglePlay;
 $("bLive").onclick=goLive;
 $("bAbout").onclick=openAbout;$("aClose").onclick=closeAbout;
@@ -1246,7 +1357,7 @@ function updHud(t){
 // keeps the whole known life with a cursor at that moment, the list stops there.
 const clock=st=>{const s=Math.max(0,Math.round(st/SPS));return (s/60|0)+":"+String(s%60).padStart(2,"0");};
 const EV_MARK={picked:"#ffffff",towed:"#ffffff",tow:"#ffd24a",merge:"#39e0c8",brush:"#a5bbb5",
-  split:"#ffb04a",swallowed:"#c98bd6",dissolved:"#ff6b6b","let go":"#a5bbb5"};
+  split:"#ffb04a",swallowed:"#c98bd6",dissolved:"#ff6b6b","let go":"#a5bbb5",feed:"#96e85a"};
 let lifeKey="",lifeListKey="";
 function updLife(){
   let L=null,nS=0,nE=0,end=null,now=0,full=0;
@@ -1270,7 +1381,10 @@ function updLife(){
     // in order of when it happened: a brush is only recognised once the other form has gone again
     const evs=L.events.slice(0,nE).sort((a,b)=>a.at-b.at);
     for(const e of evs){const li=document.createElement("li"),tm=document.createElement("time"),sp=document.createElement("span");
-      tm.textContent=clock(e.at-L.start);sp.textContent=e.text;li.appendChild(tm);li.appendChild(sp);ol.appendChild(li);}
+      tm.textContent=clock(e.at-L.start);sp.textContent=e.text;li.appendChild(tm);
+      if(e.type==="feed"&&e.sp>=0){const ch=document.createElement("i");ch.className="chip";ch.setAttribute("aria-hidden","true");
+        ch.style.background=cols_[e.sp%cols_.length];li.appendChild(ch);}
+      li.appendChild(sp);ol.appendChild(li);}
     ol.scrollTop=ol.scrollHeight;}
 }
 // size over time, stacked by species; events as marks along the bottom
@@ -1325,6 +1439,7 @@ function frame(t){
     alpha=acc/per;
   }else{acc=0;alpha=1;}
   if(lost){lost=false;msg("The form dissolved. Drag the timeline back to see it again.");}
+  if(feed.on&&t-feed.t>=100){feed.t=t;feedAt(feed.sx,feed.sy,4);}   // strewing while held
   updateView(ft);hoverUpdate(t);
   render();syncUI();updTimeline();updHud(t);audioFrame();
 }
@@ -1343,7 +1458,7 @@ function boot(){
   setRM();
   const [Lx,Ly]=boxSize();
   P.n=DEF.n=Math.min(NMAX,Math.round(DENS*Lx*Ly/20)*20);
-  buildSliders();genSeed(rand32());resetWorld();zoom=z0();zoomBounds();buildMx();
+  buildSliders();genSeed(rand32());resetWorld();zoom=z0();zoomBounds();buildMx();buildFood();
 }
 if(COARSE)$("hint").innerHTML="drag to look around &middot; tap a form to follow it &middot; drag it to tow &middot; pinch to zoom &middot; rewind on the timeline";
 buildColors();resize();armHide();

@@ -65,6 +65,10 @@ there is always new soup ahead.
   happen — brushing past other forms (gathered when several follow in a row), merging, splitting,
   being swallowed by a larger mass, dissolving. Snapshots remember how far the story had come, so it
   winds back when you rewind, and an untouched replay writes the same story again.
+- **Feed** — drop a portion around the followed form, or strew food with the mouse in Feed mode, of one
+  species or a mix. Food is never created: particles far out of sight are fetched and set down at rest,
+  so the count stays fixed. The life story records each meal and, five seconds on, how much of it the
+  form took in.
 - **Tow** — drag a form and every particle in it gets the same velocity change, so its shape and its own
   motion stay intact. In Push / Pull mode, dragging stirs the swarm as in Primordium.
 - **Rewind** — the last 60 seconds are kept as exact snapshots (positions, velocities, species, the
