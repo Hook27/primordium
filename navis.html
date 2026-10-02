@@ -164,10 +164,11 @@
   <div class="btns" style="margin-top:5px">
     <button id="bFol" title="Follow the largest form near the centre of the view, or let go of the one you follow (key F).">&#9678; Follow</button>
     <button id="bZoom" title="Back to the default zoom (key 0).">&#8982; Zoom 1:1</button>
-    <button id="bFeed" style="grid-column:1/3" title="Drop a portion of 20 particles in a ring around the form you follow (key G). In Feed mode you can also strew food with the mouse.">&#127793; Feed the form</button>
+    <button id="bFeed" title="Drop a portion of 20 particles in a ring around the form you follow (key G). In Feed mode you can also strew food with the mouse.">&#127793; Feed</button>
+    <button id="bGhost" class="on" aria-pressed="true" title="What-if ghosts: touch the past and the future you had seen plays on for a while as fading rings, wherever it differs (key W).">&#128123; Ghosts</button>
   </div>
   <div class="food" id="food" role="radiogroup" aria-label="Food: which species to feed"></div>
-  <div class="lbl kl">keys &middot; f follow &middot; g feed &middot; j life &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
+  <div class="lbl kl">keys &middot; f follow &middot; g feed &middot; w ghosts &middot; j life &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
   <div class="lbl">interaction matrix &middot; drag cells &updownarrow;</div>
   <div id="mx" tabindex="0" role="group" aria-label="Interaction matrix. Arrow keys choose a cell, plus and minus change it."></div>
 </div>
@@ -228,6 +229,10 @@
   sliders go back with it. Press play and history continues from that moment. Leave it alone and exactly the
   same future unfolds again &mdash; touch anything and it takes another course. Changing the number of
   particles or species builds a new world and starts the timeline over.</p>
+  <p>When you touch the past, the future you had seen plays on for a while as <b>what-if ghosts</b>: hollow
+  rings in the species colours, drawn only where a particle now is somewhere else, and a dashed bracket
+  where your form would have been. You watch the two futures part; after 15 seconds they have nothing in
+  common left and the ghosts have faded (<code>w</code> turns them off).</p>
   <h3>Sound</h3>
   <p>Toggle <b>Audio</b> and the swarm conducts a generative ambient piece: a breathing drone under a soft
   pentatonic melody. Frantic motion makes the notes busier and brighter, settling makes them sparse and calm.</p>
@@ -236,7 +241,7 @@
   <code>e</code> evolve &middot; <code>p</code> palette &middot; <code>a</code> sound &middot;
   <code>n</code> respawn &middot; <code>s</code> save PNG &middot; <code>h</code> hide panel &middot;
   <code>i</code> this panel &middot; <code>f</code> follow &middot; <code>esc</code> let go &middot;
-  <code>j</code> life story &middot; <code>g</code> feed &middot;
+  <code>j</code> life story &middot; <code>g</code> feed &middot; <code>w</code> ghosts &middot;
   <code>,</code> <code>.</code> step in time &middot; <code>l</code> live &middot; arrows look around &middot;
   <code>shift</code>+arrows tow &middot; <code>+</code> <code>&minus;</code> <code>0</code> zoom</p>
   <p class="cr">A single self-contained HTML file &middot; no libraries, no network, no assets. Built with Claude.</p>
@@ -341,7 +346,7 @@ function resetWorld(){
   prevX=new Float32Array(n);prevY=new Float32Array(n);prevOK=false;
   S.tX=S.camX;S.tY=S.camY;S.cvx=S.cvy=S.fvx=S.fvy=0;VW.ox=VW.oy=0;
   gridDims();zoomBounds();spawnPositions();
-  LIFE=null;lifeHidden=false;
+  LIFE=null;lifeHidden=false;ghost=null;
   S.step=0;mode="live";view=0;viewOX=viewOY=0;tow.on=false;stir.on=false;hover=null;drag=null;lost=false;
   histReset();pushSnap();clearTrails();uiRv=-1;
 }
@@ -714,7 +719,9 @@ function restore(i){
 }
 // leave the past and continue from the moment on screen
 function commit(keepView){
-  restore(Math.max(0,Math.min(hCount-1,Math.round(view))));
+  const i=Math.max(0,Math.min(hCount-1,Math.round(view)));
+  ghost=keepView?makeGhost(i):null;   // only a real touch leaves a future behind that differs
+  restore(i);
   if(keepView){S.camX+=viewOX;S.camY+=viewOY;}
   viewOX=viewOY=0;mode="live";tow.on=false;
 }
@@ -741,6 +748,7 @@ function interp(v){
   const n=S.n,Lx=S.Lx,Ly=S.Ly;
   v=Math.max(0,Math.min(hCount-1,v));
   const i0=Math.floor(v),i1=Math.min(hCount-1,i0+1),a=v-i0,s0=snapAt(i0),s1=snapAt(i1);
+  R.st=s0.step+(s1.step-s0.step)*a;   // the moment on screen, in steps
   if(i1===i0||a<0.002){R.X=s0.X;R.Y=s0.Y;R.T=s0.t;R.cx=s0.camX;R.cy=s0.camY;}
   else{
     const X0=s0.X,Y0=s0.Y,X1=s1.X,Y1=s1.Y;
@@ -758,13 +766,13 @@ function displayState(){
     if(prevOK&&alpha<1){
       const n=S.n,Lx=S.Lx,Ly=S.Ly,a=alpha,X=S.x,Y=S.y;
       for(let i=0;i<n;i++){lx[i]=prevX[i]+wd(X[i]-prevX[i],Lx)*a;ly[i]=prevY[i]+wd(Y[i]-prevY[i],Ly)*a;}
-      D.X=lx;D.Y=ly;
-    }else{D.X=S.x;D.Y=S.y;}
+      D.X=lx;D.Y=ly;D.st=S.step-1+a;
+    }else{D.X=S.x;D.Y=S.y;D.st=S.step;}
     D.cx=VW.x;D.cy=VW.y;
     D.T=S.typ;D.fol=S.fol;D.folW=S.folW;D.folN=S.folN;return D;
   }
   interp(view);
-  D.X=R.X;D.Y=R.Y;D.T=R.T;D.cx=VW.x;D.cy=VW.y;D.fol=R.fol;D.folW=R.folW;D.folN=R.folN;return D;
+  D.X=R.X;D.Y=R.Y;D.T=R.T;D.st=R.st;D.cx=VW.x;D.cy=VW.y;D.fol=R.fol;D.folW=R.folW;D.folN=R.folN;return D;
 }
 
 // ---- what you see ----
@@ -800,6 +808,75 @@ function updateView(ft){
   const k=1-Math.exp(-Math.min(0.05,ft/1000)/0.3);
   VW.ox+=(gx-VW.ox)*k;VW.oy+=(gy-VW.oy)*k;
   VW.x=t.x+VW.ox;VW.y=t.y+VW.oy;
+}
+
+// ---- what-if ghosts ----
+// Touch the past, and the future you had seen is not simply lost: for a while it plays on as ghosts,
+// hollow rings in the species colours. A ghost is only drawn where its particle now is somewhere else
+// (every particle is the same particle in both futures), so you see exactly the difference, growing
+// as the two futures part. Full strength for 4 s, gone after 15 s: by then the two worlds have
+// nothing left in common (measured: 10% of the view differs after 5 s, 96% after 15 s). View only.
+const G_FULL=4,G_END=15,gBuckets=[];
+let ghost=null,ghostsOn=true,gxA=null,gyA=null;
+function makeGhost(i){
+  const from=snapAt(i).step,snaps=[];
+  for(let j=i+1;j<hCount;j++){
+    const slot=(hStart+j)%HIST,s=hist[slot];
+    if(s.step-from>(G_END+1)*SPS)break;
+    snaps.push(s);hist[slot]=null;   // out of the ring, so the new history cannot overwrite it
+  }
+  return snaps.length>=2?{from,snaps,k:0}:null;
+}
+function ghostFade(st){
+  const g=ghost,age=(st-g.from)/SPS,last=g.snaps[g.snaps.length-1].step;
+  if(age<=0||st>last)return 0;
+  const f=age<G_FULL?1:Math.max(0,1-(age-G_FULL)/(G_END-G_FULL));
+  return f*Math.min(1,(last-st)/SPS);   // when the old future runs out: a last second to fade
+}
+function drawGhosts(d){
+  if(!ghost||!ghostsOn||d.st==null)return;
+  const g=ghost,st=d.st,f=ghostFade(st);
+  if(f<=0){if(mode==="live"&&st>g.from)ghost=null;return;}   // faded for good: let it go
+  const sn=g.snaps;let k=g.k;
+  if(k>=sn.length||sn[k].step>st)k=0;
+  while(k+1<sn.length&&sn[k+1].step<=st)k++;
+  g.k=k;
+  const s0=sn[k],s1=sn[Math.min(sn.length-1,k+1)];
+  const a=s1.step>s0.step?Math.min(1,Math.max(0,(st-s0.step)/(s1.step-s0.step))):0;
+  const n=S.n,Lx=S.Lx,Ly=S.Ly,z=zoom,mx=W/2,my=H/2,X=d.X,Y=d.Y,T=(a<.5?s0:s1).t;
+  const X0=s0.X,Y0=s0.Y,X1=s1.X,Y1=s1.Y,d0=0.15*RM,d1=0.45*RM;
+  const rad=Math.min(8,Math.max(2.4,2.5*z/z0()+1.6));
+  if(!gxA||gxA.length!==n){gxA=new Float32Array(n);gyA=new Float32Array(n);}
+  const K=P.k;for(let b=0;b<K*4;b++)(gBuckets[b]||(gBuckets[b]=[])).length=0;
+  for(let i=0;i<n;i++){
+    const gx=X0[i]+wr(X1[i]-X0[i],Lx)*a,gy=Y0[i]+wr(Y1[i]-Y0[i],Ly)*a;gxA[i]=gx;gyA[i]=gy;
+    const dd=Math.hypot(wr(gx-X[i],Lx),wr(gy-Y[i],Ly));
+    if(dd<d0)continue;   // still where it is now: nothing to tell
+    const sx=mx+wr(gx-d.cx,Lx)*z,sy=my+wr(gy-d.cy,Ly)*z;
+    if(sx<-rad||sx>W+rad||sy<-rad||sy>H+rad)continue;
+    gBuckets[T[i]*4+Math.min(3,((dd-d0)/(d1-d0)*4)|0)].push(sx,sy);   // four strengths
+  }
+  octx.lineWidth=1;
+  for(let t=0;t<K;t++)for(let lv=0;lv<4;lv++){
+    const p=gBuckets[t*4+lv];if(!p.length)continue;
+    octx.strokeStyle=cols_[t];octx.globalAlpha=f*(0.25+0.2*lv);octx.beginPath();
+    for(let q=0;q<p.length;q+=2){octx.moveTo(p[q]+rad,p[q+1]);octx.arc(p[q],p[q+1],rad,0,TAU);}
+    octx.stroke();
+  }
+  octx.globalAlpha=1;
+  // where the followed form would have been: a dashed bracket, unless it is still in the same place
+  const sf=a<.5?s0:s1;
+  if(sf.folN){
+    body(sf.fol,sf.folN,gxA,gyA,sf.folW);const ox=B.x,oy=B.y;let far=true;
+    if(d.folN){body(d.fol,d.folN,X,Y,d.folW);far=Math.hypot(wr(ox-B.x,Lx),wr(oy-B.y,Ly))>0.5*RM;}
+    if(far){octx.setLineDash([3,3]);octx.globalAlpha=f;
+      brackets(sf.fol,sf.folN,{X:gxA,Y:gyA,cx:d.cx,cy:d.cy},"rgba(220,235,232,.7)",1.2,sf.folW);
+      octx.setLineDash([]);octx.globalAlpha=1;}
+  }
+}
+function toggleGhosts(){
+  ghostsOn=!ghostsOn;const b=$("bGhost");b.classList.toggle("on",ghostsOn);b.setAttribute("aria-pressed",ghostsOn);
+  msg(ghostsOn?"What-if ghosts on.":"What-if ghosts off.");
 }
 
 // ---- render ----
@@ -842,7 +919,7 @@ function renderReview(){
     ctx.globalAlpha=1;tc.x=cx;tc.y=cy;tc.z=zoom;trailOK=true;
   }
   const r=interp(view);   // the overlay needs the moment itself
-  D.X=r.X;D.Y=r.Y;D.T=r.T;D.cx=cx;D.cy=cy;D.fol=fol;D.folW=folW;D.folN=folN;
+  D.X=r.X;D.Y=r.Y;D.T=r.T;D.st=r.st;D.cx=cx;D.cy=cy;D.fol=fol;D.folW=folW;D.folN=folN;
   drawOverlay(D);
 }
 function render(){
@@ -892,6 +969,7 @@ function pushTrail(x,y){const t=trail;if(t.length){const p=t[t.length-1];
   if((x-p.x)*(x-p.x)+(y-p.y)*(y-p.y)<36)return;}t.push({x,y,l:1});if(t.length>240)t.shift();}
 function drawOverlay(d){
   octx.clearRect(0,0,W,H);
+  drawGhosts(d);
   if(hover&&!tow.on)brackets(hover.list,hover.n,d,"rgba(57,224,200,.45)",1);
   if(d.folN)brackets(d.fol,d.folN,d,tow.on?"rgba(255,210,74,.95)":"rgba(57,224,200,.85)",1.5,d.folW);
   if(tow.on){octx.strokeStyle="rgba(255,210,74,.55)";octx.lineWidth=1;octx.setLineDash([3,4]);
@@ -1272,6 +1350,7 @@ addEventListener("keydown",e=>{
   else if(c==="l")goLive();
   else if(c==="j")toggleLife();
   else if(c==="g")feedPortion();
+  else if(c==="w")toggleGhosts();
 });
 addEventListener("keyup",e=>{shift=e.shiftKey;held.delete(e.key);});
 addEventListener("blur",()=>{held.clear();shift=false;});
@@ -1316,6 +1395,7 @@ $("seedIn").addEventListener("keydown",e=>{if(e.key==="Enter")doLoad();});
 $("bFol").onclick=toggleFollow;
 $("bZoom").onclick=()=>setZoom(z0(),null);
 $("bFeed").onclick=feedPortion;
+$("bGhost").onclick=toggleGhosts;
 $("bPlay").onclick=togglePlay;
 $("bLive").onclick=goLive;
 $("bAbout").onclick=openAbout;$("aClose").onclick=closeAbout;

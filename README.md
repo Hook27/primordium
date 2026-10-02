@@ -75,6 +75,10 @@ there is always new soup ahead.
   random generator, the camera and the rules). Scrub back, press play, and an untouched world replays
   bit for bit; touch anything and history takes another course. Even *Evolve* draws its mutations from
   the world's own generator, so it replays too.
+- **What-if ghosts** — touch the past and the discarded future plays on as hollow rings, drawn only
+  where a particle now is somewhere else (each particle is the same particle in both futures), plus a
+  dashed bracket where the followed form would have been. Full strength for 4 s, gone after 15 s:
+  measured, a light nudge leaves 10% of the view different after 5 s and 96% after 15 s.
 - **A calm camera** — it glides instead of copying every jolt: a calm zone in the middle, the form's
   velocity averaged over 0.4 s, speed changes eased and ever firmer near the limit. Tuned on recorded
   flights of the fastest forms, it cuts camera jerk 10–50× for ordinary fast forms and 3–13× for the
