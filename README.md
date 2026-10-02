@@ -65,6 +65,10 @@ there is always new soup ahead.
   happen — brushing past other forms (gathered when several follow in a row), merging, splitting,
   being swallowed by a larger mass, dissolving. Snapshots remember how far the story had come, so it
   winds back when you rewind, and an untouched replay writes the same story again.
+- **Portrait** — the camera on the life card (or `o`) saves the life as one PNG of 3200×2000, drawn afresh rather than
+  taken from the screen: the form large among its dimmed surroundings, a growth strip of moments from its
+  life at one shared scale (its shape is kept every 5 s), and its story with the chart and the events.
+  Rewound, it portrays the life as it stood then; once the form is gone, it shows its last shape.
 - **Its voice** — with Audio on, the followed form takes over the melody: its size sets the register
   (small high, large low), its speed the tempo, and its species the timbre (each species an overtone,
   as strong as its share). Merging, splitting, being swallowed, taking in food and dissolving each have

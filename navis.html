@@ -103,6 +103,7 @@
   .lh h2{font-size:12px;letter-spacing:2px;color:var(--g);font-weight:700}
   .lh #lifeAge{color:#fff;font-variant-numeric:tabular-nums}
   .lh button{margin-left:auto;padding:1px 7px;font-size:11px;line-height:1.4}
+  .lh #lifeX{margin-left:0}
   #lifeStat{color:#c4d6d1;margin:3px 0 5px;font-variant-numeric:tabular-nums}
   #lifeC{display:block;width:100%;height:58px;border-radius:5px;background:rgba(5,6,10,.55)}
   #lifeEv{list-style:none;margin-top:6px;max-height:7.6em;overflow:auto;line-height:1.55;color:#c9dbd6}
@@ -168,7 +169,7 @@
     <button id="bGhost" class="on" aria-pressed="true" title="What-if ghosts: touch the past and the future you had seen plays on for a while as fading rings, wherever it differs (key W).">&#128123; Ghosts</button>
   </div>
   <div class="food" id="food" role="radiogroup" aria-label="Food: which species to feed"></div>
-  <div class="lbl kl">keys &middot; f follow &middot; g feed &middot; w ghosts &middot; j life &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
+  <div class="lbl kl">keys &middot; f follow &middot; g feed &middot; w ghosts &middot; j life &middot; o portrait &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
   <div class="lbl">interaction matrix &middot; drag cells &updownarrow;</div>
   <div id="mx" tabindex="0" role="group" aria-label="Interaction matrix. Arrow keys choose a cell, plus and minus change it."></div>
 </div>
@@ -182,6 +183,7 @@
 <div id="hud"></div>
 <section id="life" class="glass" aria-labelledby="lifeT" hidden>
   <div class="lh"><h2 id="lifeT">LIFE</h2><span id="lifeAge">0:00</span>
+    <button id="lifeP" aria-label="Save a portrait of this life as PNG (O)" title="portrait of this life, PNG (O)">&#128247;</button>
     <button id="lifeX" aria-label="Close the life story (J)" title="close (J)">&#10005;</button></div>
   <div id="lifeStat"></div>
   <canvas id="lifeC" aria-hidden="true"></canvas>
@@ -218,6 +220,9 @@
   colours of its species, how much of it is still the form you picked, and what happened to it &mdash;
   brushing past another form, merging, splitting, being swallowed, dissolving. Rewind and the story goes
   back with you.</p>
+  <p>The camera on the card (or <code>o</code>) saves a <b>portrait</b> of the life as one picture: the form
+  large, a growth strip of moments from its life at one shared scale (a frame is kept every 5 seconds),
+  and its story. Rewound, it portrays the life as it stood then.</p>
   <h3>Feeding</h3>
   <p><b>Feed the form</b> (or <code>g</code>) drops twenty particles in a ring around the form you follow;
   in <b>Feed</b> mode a click drops a handful under the cursor and holding strews more. Pick a species
@@ -247,7 +252,7 @@
   <code>e</code> evolve &middot; <code>p</code> palette &middot; <code>a</code> sound &middot;
   <code>n</code> respawn &middot; <code>s</code> save PNG &middot; <code>h</code> hide panel &middot;
   <code>i</code> this panel &middot; <code>f</code> follow &middot; <code>esc</code> let go &middot;
-  <code>j</code> life story &middot; <code>g</code> feed &middot; <code>w</code> ghosts &middot;
+  <code>j</code> life story &middot; <code>o</code> portrait &middot; <code>g</code> feed &middot; <code>w</code> ghosts &middot;
   <code>,</code> <code>.</code> step in time &middot; <code>l</code> live &middot; arrows look around &middot;
   <code>shift</code>+arrows tow &middot; <code>+</code> <code>&minus;</code> <code>0</code> zoom</p>
   <p class="cr">A single self-contained HTML file &middot; no libraries, no network, no assets. Built with Claude.</p>
@@ -582,7 +587,7 @@ let LIFE=null,lifeHidden=false;
 const LIFE_MAX=14400;   // an hour of samples; after that only events are kept
 function lifeNew(hit,how){
   const L=LIFE={start:S.step,orig:new Uint8Array(S.n),k:P.k,steps:[],core:[],own:[],mem:[],spc:[],
-    events:[],pending:[],splitP:null,brushP:null,mealP:null,end:null,big:false,bigLog:-1e9};
+    shapes:[],last:null,events:[],pending:[],splitP:null,brushP:null,mealP:null,end:null,big:false,bigLog:-1e9};
   for(let q=0;q<hit.n;q++)L.orig[hit.list[q]]=1;
   lifeHidden=false;lifeSample();
   lifeEv(how,(how==="towed"?"grabbed and towed":"picked")+" · "+hit.n+" particles");
@@ -609,8 +614,20 @@ function lifeEnd(how){
 function lifeBrushTell(L){const b=L.brushP;
   lifeEv("brush",b.count===1?"brushed past a form of "+b.maxN+", stayed itself":
     "brushed past "+b.count+" forms (largest "+b.maxN+"), stayed itself",b.at);}
+// The form's shape, for its portrait: the newest one always (the last form, once it is gone), and one
+// every 5 s of its life for the growth strip. Each shape is a new record: snapshots keep the old ones.
+const SHAPE_EVERY=5*SPS,SHAPE_MAX=720;   // an hour of growth frames
+function lifeShape(L){
+  const n=S.folN;if(!n)return;
+  const bx=B.x,by=B.y;body(S.fol,n,S.x,S.y,S.folW);const cx=B.x,cy=B.y;B.x=bx;B.y=by;
+  const x=new Float32Array(n),y=new Float32Array(n),t=new Uint8Array(n);
+  for(let q=0;q<n;q++){const i=S.fol[q];x[q]=wd(S.x[i]-cx,S.Lx);y[q]=wd(S.y[i]-cy,S.Ly);
+    t[q]=S.typ[i]|(S.folW[q]>=CORE?128:0);}   // the high bit marks the form's own particles
+  const sh={at:S.step,n,x,y,t};L.last=sh;
+  if(L.shapes.length<SHAPE_MAX&&S.step-L.start>=L.shapes.length*SHAPE_EVERY)L.shapes.push(sh);
+}
 function lifeSample(){
-  const L=LIFE;if(L.steps.length>=LIFE_MAX)return;
+  const L=LIFE;lifeShape(L);if(L.steps.length>=LIFE_MAX)return;
   const k=L.k,sp=new Array(k).fill(0);let core=0,own=0;
   for(let q=0;q<S.folN;q++){if(S.folW[q]<CORE)continue;const i=S.fol[q];core++;own+=L.orig[i];sp[S.typ[i]]++;}
   L.steps.push(S.step);L.core.push(core);L.own.push(own);L.mem.push(S.folN);for(let t=0;t<k;t++)L.spc.push(sp[t]);
@@ -707,7 +724,7 @@ function pushSnap(){
   s.tX=S.tX;s.tY=S.tY;s.cvx=S.cvx;s.cvy=S.cvy;s.fvx=S.fvx;s.fvy=S.fvy;
   s.m.set(mat);s.rN=P.rN;s.force=P.force;s.fhl=P.fhl;s.beta=P.beta;s.dt=P.dt;
   s.evo=S.evo;s.seed=S.seed;s.custom=S.custom;s.rv=S.rv;
-  s.life=LIFE;if(LIFE){s.lifeS=LIFE.steps.length;s.lifeE=LIFE.events.length;s.lifeP=LIFE.pending;s.lifeSp=LIFE.splitP;s.lifeBp=LIFE.brushP;s.lifeMp=LIFE.mealP;s.lifeEnd=LIFE.end;s.lifeBig=LIFE.big;s.lifeBl=LIFE.bigLog;}
+  s.life=LIFE;if(LIFE){s.lifeS=LIFE.steps.length;s.lifeE=LIFE.events.length;s.lifeSh=LIFE.shapes.length;s.lifeLs=LIFE.last;s.lifeP=LIFE.pending;s.lifeSp=LIFE.splitP;s.lifeBp=LIFE.brushP;s.lifeMp=LIFE.mealP;s.lifeEnd=LIFE.end;s.lifeBig=LIFE.big;s.lifeBl=LIFE.bigLog;}
 }
 function restore(i){
   const s=snapAt(i),n=S.n,f=s.f;
@@ -721,7 +738,7 @@ function restore(i){
   if(P.rN!==s.rN){P.rN=s.rN;setRM();}
   LIFE=s.life;   // the story winds back to where it was
   if(LIFE){const L=LIFE,m=s.lifeS;L.steps.length=L.core.length=L.own.length=L.mem.length=m;L.spc.length=m*L.k;
-    L.events.length=s.lifeE;L.pending=s.lifeP;L.splitP=s.lifeSp;L.brushP=s.lifeBp;L.mealP=s.lifeMp;
+    L.events.length=s.lifeE;L.shapes.length=s.lifeSh;L.last=s.lifeLs;L.pending=s.lifeP;L.splitP=s.lifeSp;L.brushP=s.lifeBp;L.mealP=s.lifeMp;
     L.end=s.lifeEnd;L.big=s.lifeBig;L.bigLog=s.lifeBl;}
   hCount=i+1;   // the old future is gone: history continues from here
 }
@@ -1403,6 +1420,7 @@ addEventListener("keydown",e=>{
   else if(c==="f")toggleFollow();
   else if(c==="l")goLive();
   else if(c==="j")toggleLife();
+  else if(c==="o")portrait();
   else if(c==="g")feedPortion();
   else if(c==="w")toggleGhosts();
 });
@@ -1411,8 +1429,8 @@ addEventListener("blur",()=>{held.clear();shift=false;});
 
 // ---- panel wiring ----
 function cyclePal(){pal=(pal+1)%pals.length;buildColors();buildMx();buildFood();}
-function snap(){const a=document.createElement("a"),
-  t=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,19).replace(/[-:]/g,"").replace("T","-");
+const fileTime=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString();   // local time
+function snap(){const a=document.createElement("a"),t=fileTime().slice(0,19).replace(/[-:]/g,"").replace("T","-");
   a.download="navis_"+(S.custom?"custom":S.seed.toString(36))+"_"+t+".png";a.href=cv.toDataURL("image/png");a.click();}
 // The panel slides away after 15 s without use, as in Primordium; only a mouse resting on it keeps
 // it. Focus inside it moves to the menu button, so the keyboard can bring it straight back.
@@ -1527,8 +1545,12 @@ function lifeChart(L,full,nS,now){
   if(!w||!h)return;
   if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}
   const g=c.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+  drawChart(g,w,h,L,full,nS,now,1,mode==="review");
+}
+// u scales the event marks; cursor marks the moment on screen
+function drawChart(g,w,h,L,full,nS,now,u,cursor){
   if(!full)return;
-  const k=L.k,t0=L.start,t1=Math.max(t0+5*SPS,L.steps[full-1],now),span=t1-t0,base=h-9,ph=base-4;
+  const k=L.k,t0=L.start,t1=Math.max(t0+5*SPS,L.steps[full-1],now),span=t1-t0,base=h-9*u,ph=base-4*u;
   let mx=1;for(let q=0;q<full;q++)if(L.core[q]>mx)mx=L.core[q];
   const X=st=>(st-t0)/span*(w-1);
   let q=0;
@@ -1544,20 +1566,182 @@ function lifeChart(L,full,nS,now){
   g.globalAlpha=1;
   for(const e of L.events){   // only events written by the moment on screen are marked
     if(e.s>now)break;
-    const x=X(e.at);g.fillStyle=EV_MARK[e.type]||"#fff";g.beginPath();
-    if(e.type==="merge"){g.moveTo(x,h-8);g.lineTo(x+3.5,h-2);g.lineTo(x-3.5,h-2);}
-    else if(e.type==="split"){g.moveTo(x,h-2);g.lineTo(x+3.5,h-8);g.lineTo(x-3.5,h-8);}
-    else if(e.type==="dissolved"||e.type==="let go"){g.rect(x-1,h-9,2,8);}
-    else g.arc(x,h-5,2.6,0,TAU);
-    g.fill();
+    evMark(g,e.type,X(e.at),h-5*u,u);
   }
-  if(mode==="review"){const x=X(now);g.strokeStyle="#ffd24a";g.lineWidth=1;g.beginPath();g.moveTo(x+.5,0);g.lineTo(x+.5,base);g.stroke();}
+  if(cursor){const x=X(now);g.strokeStyle="#ffd24a";g.lineWidth=1;g.beginPath();g.moveTo(x+.5,0);g.lineTo(x+.5,base);g.stroke();}
+}
+// an event's mark, centred on (x,y): a merger points up, a split down, an end is a bar
+function evMark(g,type,x,y,u){
+  g.fillStyle=EV_MARK[type]||"#fff";g.beginPath();
+  if(type==="merge"){g.moveTo(x,y-3*u);g.lineTo(x+3.5*u,y+3*u);g.lineTo(x-3.5*u,y+3*u);}
+  else if(type==="split"){g.moveTo(x,y+3*u);g.lineTo(x+3.5*u,y-3*u);g.lineTo(x-3.5*u,y-3*u);}
+  else if(type==="dissolved"||type==="let go")g.rect(x-u,y-4*u,2*u,8*u);
+  else g.arc(x,y,2.6*u,0,TAU);
+  g.fill();
 }
 function toggleLife(){
   lifeHidden=!lifeHidden;updLife();
   if(!lifeHidden&&$("life").hidden)msg("No life story yet: follow a form first.");
 }
 $("lifeX").onclick=()=>{lifeHidden=true;updLife();};
+$("lifeP").onclick=portrait;
+
+// ---- a portrait of a life ----
+// One picture of the followed form and its life, drawn afresh rather than taken from the screen: the
+// form large (as it is, or as it last was), a growth strip of moments from its life at one shared
+// scale, and its story beside them. Looking at the past, it portrays the life as it stood then.
+// laid out at 1600x1000, drawn at PS times that
+const PW=1600,PH=1000,PS=2,PF="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
+function lifeAt(){   // the story as it stands at the moment on screen, and the world at that moment
+  if(mode==="live")return LIFE&&{L:LIFE,nS:LIFE.steps.length,nE:LIFE.events.length,nSh:LIFE.shapes.length,
+    last:LIFE.last,end:LIFE.end,now:S.step,X:S.x,Y:S.y,T:S.typ,fol:S.fol,folW:S.folW,folN:S.folN,
+    seed:S.seed,custom:S.custom};
+  const s=snapAt(Math.max(0,Math.min(hCount-1,Math.round(view))));
+  return s.life&&{L:s.life,nS:s.lifeS,nE:s.lifeE,nSh:s.lifeSh,last:s.lifeLs,end:s.lifeEnd,now:s.step,
+    X:s.X,Y:s.Y,T:s.t,fol:s.fol,folW:s.folW,folN:s.folN,seed:s.seed,custom:s.custom};
+}
+// the form at that moment around its centre, and which particles are its own; once gone, its last shape
+function formShape(A){
+  if(A.end!==null||A.folN<MINBODY)return A.last&&{sh:A.last,mine:null,last:true};
+  const n=A.folN,bx=B.x,by=B.y;body(A.fol,n,A.X,A.Y,A.folW);const cx=B.x,cy=B.y;B.x=bx;B.y=by;
+  const x=new Float32Array(n),y=new Float32Array(n),t=new Uint8Array(n),mine=new Uint8Array(S.n);
+  for(let q=0;q<n;q++){const i=A.fol[q];x[q]=wd(A.X[i]-cx,S.Lx);y[q]=wd(A.Y[i]-cy,S.Ly);
+    t[q]=A.T[i]|(A.folW[q]>=CORE?128:0);mine[i]=1;}
+  return {sh:{at:A.now,n,x,y,t},mine,cx,cy,last:false};
+}
+function extent(sh){let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  for(let q=0;q<sh.n;q++){const x=sh.x[q],y=sh.y[q];if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}
+  return {x0,x1,y0,y1,cx:(x0+x1)/2,cy:(y0+y1)/2};}
+const fitScale=(e,w,h,m)=>Math.min(w/(e.x1-e.x0+2*m),h/(e.y1-e.y0+2*m));
+const ownCount=sh=>{let c=0;for(let q=0;q<sh.n;q++)if(sh.t[q]&128)c++;return c;};
+// particles at scale s around (px,py), each a soft halo and a dot; the form's own particles at aOwn,
+// newcomers (and the world around it) at aRest
+function spots(g,sh,px,py,s,rad,aOwn,aRest,k){
+  g.globalCompositeOperation="lighter";
+  for(let pass=0;pass<2;pass++)for(let own=1;own>=0;own--){
+    const a=own?aOwn:aRest;if(!a)continue;
+    g.globalAlpha=pass?a:a*0.14;const r=pass?rad:rad*2.8;
+    for(let sp=0;sp<k;sp++){
+      let any=false;g.fillStyle=cols_[sp%cols_.length];g.beginPath();
+      for(let q=0;q<sh.n;q++){const tq=sh.t[q];if((tq&127)!==sp||(tq>>7)!==own)continue;
+        const X=px+sh.x[q]*s,Y=py+sh.y[q]*s;g.moveTo(X+r,Y);g.arc(X,Y,r,0,TAU);any=true;}
+      if(any)g.fill();
+    }
+  }
+  g.globalAlpha=1;g.globalCompositeOperation="source-over";
+}
+function panelBox(g,x,y,w,h){
+  g.fillStyle="#0a0e17";g.strokeStyle="rgba(90,230,210,.22)";g.lineWidth=1;g.beginPath();
+  if(g.roundRect)g.roundRect(x+.5,y+.5,w-1,h-1,10);else g.rect(x+.5,y+.5,w-1,h-1);
+  g.fill();g.stroke();
+}
+function ptxt(g,s,x,y,size,col,o){
+  o=o||{};g.font=(o.b?"700 ":"")+size+"px "+PF;g.fillStyle=col;g.textAlign=o.r?"right":"left";
+  g.letterSpacing=(o.ls||0)+"px";g.fillText(s,x,y);g.letterSpacing="0px";
+}
+function wrapText(g,s,w){const out=[];let line="";
+  for(const wo of s.split(" ")){const t=line?line+" "+wo:wo;
+    if(line&&g.measureText(t).width>w){out.push(line);line=wo;}else line=t;}
+  if(line)out.push(line);return out;}
+function drawPortrait(A){
+  const F=formShape(A);if(!F)return null;
+  const L=A.L,k=L.k,end=A.end,now=end!==null?end:A.now,age=now-L.start,j=A.nS-1;
+  const c=document.createElement("canvas");c.width=PW*PS;c.height=PH*PS;
+  const g=c.getContext("2d",{alpha:false});g.setTransform(PS,0,0,PS,0,0);g.fillStyle=BG;g.fillRect(0,0,PW,PH);g.textBaseline="alphabetic";
+  // the form, large, with the world around it dimmed
+  const fx=40,fy=40,fw=1000,fh=640;panelBox(g,fx,fy,fw,fh);
+  const e=extent(F.sh),s=Math.min(fitScale(e,fw-60,fh-60,(F.mine?0.6:0.4)*RM),0.45*fh/RM);
+  const px=fx+fw/2-e.cx*s,py=fy+fh/2-e.cy*s,rad=Math.min(8,Math.max(1.4,0.028*RM*s));
+  g.save();g.beginPath();g.rect(fx+1,fy+1,fw-2,fh-2);g.clip();
+  if(F.mine){   // the world nearby, as far as the panel reaches
+    const hw=(fw/2+20)/s,hh=(fh/2+20)/s,ox=F.cx+e.cx,oy=F.cy+e.cy,ax=[],ay=[],at=[];
+    for(let i=0;i<S.n;i++){if(F.mine[i])continue;
+      const dx=wd(A.X[i]-ox,S.Lx),dy=wd(A.Y[i]-oy,S.Ly);
+      if(Math.abs(dx)<hw&&Math.abs(dy)<hh){ax.push(dx+e.cx);ay.push(dy+e.cy);at.push(A.T[i]);}}
+    spots(g,{n:ax.length,x:ax,y:ay,t:at},px,py,s,rad,0,0.2,k);
+  }
+  spots(g,F.sh,px,py,s,rad,1,0.4,k);
+  g.restore();
+  const oc=ownCount(F.sh),nc=F.sh.n-oc;
+  ptxt(g,F.last?"LAST FORM":"FORM",fx+20,fy+32,13,"#a5bbb5",{ls:2});
+  ptxt(g,oc+" particles"+(nc?" · "+nc+" newcomer"+(nc>1?"s":"")+" (dimmed)":""),fx+fw-20,fy+32,13,"#dcefea",{r:true});
+  ptxt(g,(F.last?"last seen at ":"age ")+clock(F.sh.at-L.start),fx+20,fy+fh-20,13,"#dcefea");
+  const bl=RM*s,bx0=fx+fw-20-bl,by0=fy+fh-30;   // scale bar: one interaction radius
+  g.strokeStyle="rgba(220,235,232,.6)";g.lineWidth=1.5;g.beginPath();
+  g.moveTo(bx0,by0-5);g.lineTo(bx0,by0+5);g.moveTo(bx0,by0);g.lineTo(bx0+bl,by0);g.moveTo(bx0+bl,by0-5);g.lineTo(bx0+bl,by0+5);g.stroke();
+  ptxt(g,"interaction radius",fx+fw-20,by0+20,11,"#a5bbb5",{r:true});
+  // the growth strip: moments from its life, evenly spread, all at one scale
+  const cand=L.shapes.slice(0,A.nSh),fin=F.sh;
+  if(!cand.length||fin.at>cand[cand.length-1].at)cand.push(fin);
+  const m=Math.min(6,cand.length),pick=[],a0=cand[0].at;
+  for(let i=0,prev=-1;i<m;i++){   // nearest to evenly spread ages, first and last included
+    const tg=a0+(fin.at-a0)*(m>1?i/(m-1):0);let best=prev+1,bd=Infinity;
+    for(let q=prev+1;q<=cand.length-(m-i);q++){const d=Math.abs(cand[q].at-tg);if(d<bd){bd=d;best=q;}}
+    pick.push(cand[best]);prev=best;
+  }
+  const gp=12,pw=(fw-5*gp)/6,ph=206,sy=724,exts=pick.map(extent);
+  let ss=0.45*ph/RM;for(const x of exts)ss=Math.min(ss,fitScale(x,pw-16,ph-44,0.2*RM));
+  const rs=Math.min(5,Math.max(1,0.028*RM*ss));
+  ptxt(g,"GROWTH · ONE SCALE",fx,sy-12,12,"#a5bbb5",{ls:2});
+  pick.forEach((sh,i)=>{const x=fx+i*(pw+gp),ex=exts[i];panelBox(g,x,sy,pw,ph);
+    g.save();g.beginPath();g.rect(x+1,sy+1,pw-2,ph-2);g.clip();
+    spots(g,sh,x+pw/2-ex.cx*ss,sy+(ph-24)/2-ex.cy*ss,ss,rs,1,0.4,k);g.restore();
+    ptxt(g,clock(sh.at-L.start),x+10,sy+ph-10,13,"#dcefea");
+    ptxt(g,String(ownCount(sh)),x+pw-10,sy+ph-10,13,"#a5bbb5",{r:true});
+  });
+  // the story
+  const rx=1080,rw=480,core=L.core[j],own=L.own[j],lastEv=A.nE?L.events[A.nE-1]:null;
+  ptxt(g,"LIFE",rx,70,24,"#39e0c8",{b:true,ls:3});
+  ptxt(g,clock(age),rx+rw,70,24,"#ffffff",{r:true});
+  ptxt(g,end!==null&&lastEv?lastEv.text+" at "+clock(end-L.start):
+    core+" particles · "+Math.round(own/Math.max(1,core)*100)+"% original",rx,104,15,"#c4d6d1");
+  let mx=0,mj=0;for(let q=0;q<A.nS;q++)if(L.core[q]>mx){mx=L.core[q];mj=q;}
+  ptxt(g,"largest "+mx+" at "+clock(L.steps[mj]-L.start),rx,128,15,"#c4d6d1");
+  let tot=0;for(let t=0;t<k;t++)tot+=L.spc[j*k+t];
+  let cx=rx;if(tot)for(let t=0;t<k;t++){const v=L.spc[j*k+t];if(!v)continue;   // what it is made of
+    const w=v/tot*rw;g.fillStyle=cols_[t%cols_.length];g.fillRect(cx,140,w,8);cx+=w;}
+  ptxt(g,"SIZE BY SPECIES",rx,178,12,"#a5bbb5",{ls:2});
+  ptxt(g,"max "+mx,rx+rw,178,12,"#a5bbb5",{r:true});
+  panelBox(g,rx,188,rw,160);
+  g.save();g.setTransform(1,0,0,1,(rx+10)*PS,198*PS);   // in real pixels: one column of the chart each
+  drawChart(g,(rw-20)*PS,142*PS,L,A.nS,A.nS,now,1.6*PS,false);g.restore();
+  ptxt(g,"0:00",rx,370,12,"#a5bbb5");   // the chart spans at least 5 s
+  ptxt(g,clock(Math.max(5*SPS,L.steps[j]-L.start,age)),rx+rw,370,12,"#a5bbb5",{r:true});
+  ptxt(g,"EVENTS",rx,408,12,"#a5bbb5",{ls:2});
+  g.font="14px "+PF;
+  const evs=L.events.slice(0,A.nE).sort((a,b)=>a.at-b.at),LH=22,y0=436,maxL=Math.floor((930-y0)/LH)+1;
+  const blocks=evs.map(ev=>({ev,lines:wrapText(g,ev.text,rw-70)}));
+  let show=blocks,skip=0;
+  if(blocks.reduce((a,b)=>a+b.lines.length,0)>maxL){   // too long: the beginning and the end
+    const head=[],tail=[];let hl=0,tl=0;
+    for(const b of blocks){if(hl+b.lines.length>5)break;head.push(b);hl+=b.lines.length;}
+    for(let i=blocks.length-1;i>=head.length;i--){const b=blocks[i];
+      if(hl+tl+b.lines.length>maxL-1)break;tail.unshift(b);tl+=b.lines.length;}
+    skip=blocks.length-head.length-tail.length;show=head.concat([null],tail);
+  }
+  let y=y0;
+  for(const b of show){
+    if(!b){ptxt(g,"… "+skip+" more event"+(skip>1?"s":""),rx+70,y,14,"#a5bbb5");y+=LH;continue;}
+    ptxt(g,clock(b.ev.at-L.start),rx+46,y,14,"#a5bbb5",{r:true});
+    if(b.ev.type==="feed"&&b.ev.sp>=0){g.fillStyle=cols_[b.ev.sp%cols_.length];g.fillRect(rx+52,y-10,10,10);}
+    else evMark(g,b.ev.type,rx+57,y-5,1.3);
+    for(const ln of b.lines){ptxt(g,ln,rx+70,y,14,"#c9dbd6");y+=LH;}
+  }
+  // the label
+  g.strokeStyle="rgba(90,230,210,.22)";g.lineWidth=1;g.beginPath();g.moveTo(fx,952.5);g.lineTo(PW-40,952.5);g.stroke();
+  ptxt(g,"NAVIS · particle life voyage",fx,978,13,"#39e0c8",{b:true,ls:1});
+  ptxt(g,(A.custom?"custom rules":"seed "+A.seed.toString(36))+" · "+k+" species · "+
+    fileTime().slice(0,16).replace("T"," "),PW-40,978,13,"#a5bbb5",{r:true});
+  return c;
+}
+function portrait(){
+  const A=lifeAt(),c=A&&A.nS?drawPortrait(A):null;
+  if(!c){msg("No life to portray yet: follow a form first.");return;}
+  const name="navis_life_"+(A.custom?"custom":A.seed.toString(36))+"_"+fileTime().slice(0,19).replace(/[-:]/g,"").replace("T","-")+".png";
+  c.toBlob(b=>{if(!b)return;const a=document.createElement("a"),u=URL.createObjectURL(b);
+    a.download=name;a.href=u;a.click();setTimeout(()=>URL.revokeObjectURL(u),5000);
+    msg("Portrait of this life saved.");},"image/png");
+}
 
 // ---- loop ----
 let last=performance.now(),acc=0,fps=60;
