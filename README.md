@@ -65,6 +65,10 @@ there is always new soup ahead.
   happen — brushing past other forms (gathered when several follow in a row), merging, splitting,
   being swallowed by a larger mass, dissolving. Snapshots remember how far the story had come, so it
   winds back when you rewind, and an untouched replay writes the same story again.
+- **Its voice** — with Audio on, the followed form takes over the melody: its size sets the register
+  (small high, large low), its speed the tempo, and its species the timbre (each species an overtone,
+  as strong as its share). Merging, splitting, being swallowed, taking in food and dissolving each have
+  a cue, all on the same pentatonic scale.
 - **Feed** — drop a portion around the followed form, or strew food with the mouse in Feed mode, of one
   species or a mix. Food is never created: particles far out of sight are fetched and set down at rest,
   so the count stays fixed. The life story records each meal and, five seconds on, how much of it the
