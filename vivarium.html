@@ -1,0 +1,1259 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Vivarium · xenobiologie</title>
+<style>
+  :root{--g:#39e0c8;--w:#f3c14b;--r:#e2613a;--p:#c98bd6;--bg:#05060a;
+        --pan:rgba(9,13,21,.78);--line:rgba(90,230,210,.18)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:#cfe;
+    font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;-webkit-font-smoothing:antialiased}
+  #c{position:fixed;inset:0;display:block;touch-action:none}
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(125% 125% at 50% 45%,transparent 54%,#000 100%)}
+  .pane{position:fixed;background:var(--pan);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+    border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 44px rgba(0,0,0,.55)}
+
+  /* ---- top bar ---- */
+  #top{top:12px;left:12px;right:12px;height:38px;display:flex;align-items:center;gap:10px;
+    padding:0 10px 0 12px;z-index:6}
+  #top h1{font-size:12px;letter-spacing:3px;color:var(--g);font-weight:700;white-space:nowrap}
+  .tabs{display:flex;gap:4px;margin-left:6px}
+  .tabs button{font-size:10px;letter-spacing:1.4px;padding:5px 11px}
+  .tabs button.on{background:#12564e;border-color:var(--g);color:#eafffb}
+  #rank{margin-left:auto;display:flex;gap:14px;align-items:baseline;font-size:10px;opacity:.75;white-space:nowrap}
+  #rank b{color:#fff;font-weight:600}
+  #home{font-size:10px;letter-spacing:1.4px;text-decoration:none;color:var(--g);opacity:.55;padding:5px 8px}
+  #home:hover{opacity:1}
+
+  button{font-family:inherit;font-size:10px;color:#dff;background:#141d30;
+    border:1px solid rgba(90,230,210,.22);border-radius:7px;padding:6px 8px;cursor:pointer;transition:.15s}
+  button:hover:not(:disabled){background:#1c2942;border-color:var(--g)}
+  button:active:not(:disabled){transform:translateY(1px)}
+  button:disabled{opacity:.32;cursor:not-allowed}
+  .pri{background:linear-gradient(180deg,#1d9a89,#13675c);border-color:#2fd;color:#eafffb;font-weight:600}
+  .warn{background:linear-gradient(180deg,#9a6b1d,#675013);border-color:var(--w);color:#fff5e0}
+
+  /* ---- scanner panel ---- */
+  #scan{top:62px;left:12px;width:284px;max-height:calc(100% - 86px);overflow:auto;padding:11px 13px 13px;z-index:5}
+  #scan::-webkit-scrollbar{width:6px}#scan::-webkit-scrollbar-thumb{background:#1f2c46;border-radius:3px}
+  .lbl{font-size:9px;opacity:.45;letter-spacing:1.8px;text-transform:uppercase;margin:11px 0 5px}
+  .lbl:first-child{margin-top:0}
+  .code{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--g);letter-spacing:1px}
+  .code input{flex:1;min-width:0;background:#0c1320;border:1px solid var(--line);color:var(--g);
+    border-radius:6px;padding:5px 7px;font-family:inherit;font-size:12px;letter-spacing:1px}
+  /* lock-on progress */
+  #lockWrap{margin-top:9px}
+  #lockBar{height:3px;background:#16203a;border-radius:2px;overflow:hidden}
+  #lockFill{height:100%;width:0;background:linear-gradient(90deg,#1d7a6e,var(--g));transition:width .12s linear}
+  #lockTxt{font-size:9px;opacity:.55;margin-top:4px;letter-spacing:1.2px}
+  /* verdict */
+  #verdict{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:9px 10px;
+    background:rgba(6,10,17,.6);opacity:.35;transition:opacity .3s}
+  #verdict.live{opacity:1;border-color:rgba(90,230,210,.4)}
+  #vName{font-size:13px;color:#fff;letter-spacing:.5px;font-style:italic}
+  #vArch{font-size:10px;letter-spacing:2px;margin-top:3px;color:var(--g);text-transform:uppercase}
+  #vRare{font-size:9.5px;opacity:.7;margin-top:4px}
+  #vRare b{color:var(--w);font-weight:600}
+  .new{display:inline-block;font-size:8.5px;letter-spacing:1.2px;color:#062;background:var(--g);
+    border-radius:3px;padding:1px 5px;margin-left:6px;vertical-align:1px}
+  /* metric rows */
+  .m{display:grid;grid-template-columns:52px 1fr 42px;gap:7px;align-items:center;
+     font-size:9.5px;margin:3px 0;opacity:.9}
+  .m i{font-style:normal;opacity:.6;letter-spacing:.5px}
+  .m u{text-decoration:none;height:3px;background:#16203a;border-radius:2px;overflow:hidden;display:block}
+  .m u s{display:block;height:100%;background:var(--g);width:0;transition:width .25s}
+  .m b{text-align:right;font-weight:500;color:#fff;opacity:.85;font-variant-numeric:tabular-nums}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
+  .grid2 button{padding:8px 4px}
+  /* contract */
+  #ctr{margin-top:11px;border-left:2px solid var(--w);padding:2px 0 2px 9px}
+  #ctrT{font-size:10.5px;color:var(--w);letter-spacing:1px}
+  #ctrD{font-size:9.5px;opacity:.7;margin-top:3px;line-height:1.45}
+  #ctrP{font-size:9px;opacity:.5;margin-top:4px}
+
+  /* ---- bestiary ---- */
+  #dex{position:fixed;inset:0;z-index:8;display:none;padding:60px 18px 18px;overflow:auto;
+    background:rgba(2,4,8,.86);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+  #dex.show{display:block}
+  #dex .wrap{max-width:1080px;margin:0 auto}
+  #dex h2{font-size:15px;letter-spacing:3px;color:var(--g);margin-bottom:3px}
+  #dex .sub{font-size:10px;opacity:.5;margin-bottom:16px}
+  #cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(196px,1fr))}
+  .card{background:rgba(12,17,27,.9);border:1px solid rgba(255,255,255,.08);border-radius:12px;
+    overflow:hidden;cursor:pointer;transition:.18s}
+  .card:hover{border-color:var(--g);transform:translateY(-3px)}
+  .card img{display:block;width:100%;aspect-ratio:64/44;object-fit:cover;background:#05060a}
+  .card .b{padding:9px 10px 11px}
+  .card .n{font-size:11px;color:#fff;font-style:italic;line-height:1.3}
+  .card .a{font-size:9px;letter-spacing:1.6px;color:var(--g);text-transform:uppercase;margin-top:4px}
+  .card .s{font-size:9px;opacity:.5;margin-top:5px;font-variant-numeric:tabular-nums}
+  .empty{opacity:.45;font-size:11px;line-height:1.7;padding:30px 0}
+  #chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+  .chip{font-size:9px;letter-spacing:1.4px;text-transform:uppercase;padding:4px 9px;border-radius:99px;
+    border:1px solid rgba(255,255,255,.12);color:#8496ad;background:rgba(255,255,255,.03)}
+  .chip.has{color:#05060a;font-weight:700;border-color:transparent}
+  .chip u{text-decoration:none;opacity:.6;margin-left:5px;font-weight:400}
+  #dexBar{position:fixed;top:12px;right:12px;z-index:9;display:none;gap:6px}
+  #dexBar.show{display:flex}
+
+  /* ---- kweeklab ---- */
+  #lab{position:fixed;inset:0;z-index:8;display:none;padding:60px 18px 18px;overflow:auto;
+    background:rgba(2,4,8,.9);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+  #lab.show{display:block}
+  #lab .wrap{max-width:1120px;margin:0 auto}
+  .labhead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  #lab h2{font-size:15px;letter-spacing:3px;color:var(--w)}
+  #lab .sub{font-size:10px;opacity:.55;margin-top:4px;line-height:1.5;max-width:560px}
+  .labstat{font-size:10px;opacity:.7;letter-spacing:1px;white-space:nowrap}
+  .labstat b{color:#fff;font-size:12px;font-variant-numeric:tabular-nums}
+  .labmain{display:grid;grid-template-columns:264px 1fr;gap:16px;margin-top:16px;align-items:start}
+  .goal{background:rgba(12,17,27,.9);border:1px solid rgba(243,193,75,.3);border-radius:10px;
+    padding:12px 14px 14px}
+  .cap{font-size:9px;letter-spacing:1.8px;text-transform:uppercase;opacity:.5}
+  #gT{font-size:14px;color:var(--w);letter-spacing:.5px;margin-top:7px;line-height:1.3}
+  #gD{font-size:10px;opacity:.7;margin-top:6px;line-height:1.5}
+  #gBar{height:4px;background:#16203a;border-radius:2px;overflow:hidden;margin-top:11px}
+  #gBar s{display:block;height:100%;width:0;background:var(--w);transition:width .3s}
+  #gN{font-size:9.5px;opacity:.6;margin-top:6px;font-variant-numeric:tabular-nums}
+  .kids{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(178px,1fr))}
+  .kid{background:rgba(12,17,27,.9);border:1px solid rgba(255,255,255,.09);border-radius:10px;
+    overflow:hidden;cursor:pointer;transition:.15s;position:relative}
+  .kid.wait{cursor:progress}
+  .kid:hover:not(.wait){border-color:var(--w);transform:translateY(-2px)}
+  .kid canvas{display:block;width:100%;aspect-ratio:64/44;background:#05060a}
+  .kid .sc{display:flex;align-items:baseline;justify-content:space-between;padding:6px 9px 8px;font-size:9px;opacity:.75}
+  .kid .sc b{font-size:13px;color:#fff;font-variant-numeric:tabular-nums}
+  .kid .pb{height:3px;background:#16203a}
+  .kid .pb s{display:block;height:100%;width:0;background:var(--w)}
+  .kid .sc .ar{letter-spacing:1.4px;text-transform:uppercase;font-size:8.5px;opacity:.85}
+  .kid.best{border-color:var(--w);box-shadow:0 0 0 1px rgba(243,193,75,.25)}
+  .kid.hit{border-color:var(--g);box-shadow:0 0 0 1px rgba(57,224,200,.35)}
+  .kid.hit .pb s{background:var(--g)}
+  .kid .tag2{position:absolute;top:6px;left:6px;font-size:8px;letter-spacing:1.2px;
+    background:rgba(5,6,10,.8);border:1px solid rgba(255,255,255,.15);border-radius:4px;padding:2px 5px;opacity:.8}
+  .labctl{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap;font-size:10px;opacity:.85}
+  .labctl input[type=range]{width:140px;height:4px;-webkit-appearance:none;appearance:none;
+    background:#1d2740;border-radius:3px;outline:none}
+  .labctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;
+    border-radius:50%;background:var(--w);cursor:pointer;box-shadow:0 0 9px var(--w)}
+  .labctl b{color:#fff;font-variant-numeric:tabular-nums;min-width:28px;display:inline-block}
+  #labMsg{margin-top:12px;font-size:11px;line-height:1.6;min-height:34px}
+  #labMsg.win{color:var(--g)}#labMsg.lose{color:var(--r)}
+  @media (max-width:760px){.labmain{grid-template-columns:1fr}}
+
+  /* ---- uitleg ---- */
+  #bHelp{width:24px;height:24px;padding:0;border-radius:50%;font-size:11px;opacity:.6}
+  #bHelp:hover{opacity:1}
+  #help{position:fixed;inset:0;z-index:11;display:none;align-items:center;justify-content:center;
+    padding:18px;background:rgba(2,4,8,.76);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #help.show{display:flex}
+  #help .card{max-width:456px;max-height:88%;overflow:auto;background:rgba(11,16,26,.97);
+    border:1px solid rgba(90,230,210,.25);border-radius:16px;padding:22px 24px;font-size:12.5px;
+    line-height:1.55;box-shadow:0 22px 72px rgba(0,0,0,.7);cursor:default}
+  #help h2{color:var(--g);letter-spacing:3px;font-size:17px;margin-bottom:10px}
+  #help h3{color:#fff;font-size:12.5px;margin:15px 0 5px;opacity:.95}
+  #help p{opacity:.82;margin:7px 0}
+  #help code{background:#0b1422;border:1px solid #1c2942;border-radius:5px;padding:1px 5px;color:#8ff}
+  #help .cr{opacity:.5;font-size:11px;margin-top:16px}
+  #help button{margin-top:14px;width:100%;padding:10px}
+
+  /* ---- toast ---- */
+  #toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(14px);
+    z-index:10;padding:9px 16px;border-radius:10px;background:rgba(9,13,21,.94);
+    border:1px solid var(--line);font-size:11px;letter-spacing:.5px;opacity:0;
+    transition:opacity .3s,transform .3s;pointer-events:none;white-space:nowrap}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast b{color:var(--g)}
+
+  #hud{position:fixed;right:14px;bottom:11px;font-size:10px;opacity:.35;text-align:right;
+    pointer-events:none;font-variant-numeric:tabular-nums}
+  @media (max-width:760px){
+    #scan{width:calc(100% - 24px);max-height:44%;top:auto;bottom:12px}
+    #top h1{display:none}
+    #hud{display:none}
+    #rank .wide{display:none}          /* anders loopt de bovenbalk over */
+    #home{display:none}
+    .tabs button{padding:5px 8px;letter-spacing:1px}
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+
+<div class="pane" id="top">
+  <h1>VIVARIUM</h1>
+  <div class="tabs">
+    <button id="tSaf" class="on">SAFARI</button>
+    <button id="tLab">KWEEKLAB</button>
+    <button id="tDex">BESTIARIUM</button>
+  </div>
+  <div id="rank"><span>gevangen <b id="rCount">0</b></span><span class="wide">soorten <b id="rKinds">0</b>/12</span><span class="wide">contracten <b id="rCtr">0</b></span></div>
+  <button id="bHelp" title="uitleg (i)">?</button>
+  <a id="home" href="index.html">&lsaquo; Primordia</a>
+</div>
+
+<div class="pane" id="scan">
+  <div class="lbl">specimen</div>
+  <div class="code"><input id="seedIn" spellcheck="false" title="genetische code"><button id="bLoad">laad</button></div>
+  <div id="lockWrap">
+    <div id="lockBar"><div id="lockFill"></div></div>
+    <div id="lockTxt">scanner gereed</div>
+  </div>
+
+  <div id="verdict">
+    <div id="vName">&mdash;</div>
+    <div id="vArch">niet geclassificeerd</div>
+    <div id="vRare">stabiliseer het organisme om te classificeren</div>
+  </div>
+
+  <div class="lbl">metingen</div>
+  <div id="metrics"></div>
+
+  <div class="grid2">
+    <button class="pri" id="bScan">&#9673; nieuwe seed</button>
+    <button id="bMut">&#9883; muteer</button>
+  </div>
+  <div class="grid2">
+    <button class="warn" id="bCatch" disabled style="grid-column:1/3">&#128247; vang specimen</button>
+  </div>
+
+  <div class="lbl">contract</div>
+  <div id="ctr">
+    <div id="ctrT">&mdash;</div>
+    <div id="ctrD"></div>
+    <div id="ctrP"></div>
+  </div>
+</div>
+
+<div id="lab"><div class="wrap">
+  <div class="labhead">
+    <div>
+      <h2>KWEEKLAB</h2>
+      <div class="sub">Kies elke generatie de nakomeling die het dichtst bij het kweekdoel komt;
+      die wordt de ouder van de volgende zes. Elk organisme wordt volledig doorgemeten, precies
+      zoals de scanner in de safari dat doet.</div>
+    </div>
+    <div class="labstat">generatie <b id="lGen">1</b>/<b id="lGens">8</b> &nbsp;·&nbsp; beste <b id="lBest">–</b></div>
+  </div>
+  <div class="labmain">
+    <div class="goal">
+      <div class="cap">kweekdoel</div>
+      <div id="gT">&mdash;</div>
+      <div id="gD"></div>
+      <div id="gBar"><s></s></div>
+      <div id="gN"></div>
+    </div>
+    <div class="kids" id="kids"></div>
+  </div>
+  <div class="labctl">
+    <span>straling <input type="range" id="lRad" min="0.04" max="0.45" step="0.01" value="0.18"><b id="lRadV">0.18</b></span>
+    <button id="lNew">nieuwe opdracht</button>
+    <button id="lTake">neem ouder mee naar safari</button>
+    <button id="labClose">sluit</button>
+  </div>
+  <div id="labMsg"></div>
+</div></div>
+
+<div id="dexBar"><button id="bExport">exporteer</button><button id="bWipe">wis alles</button><button id="dexClose">sluit</button></div>
+<div id="dex"><div class="wrap">
+  <h2>BESTIARIUM</h2>
+  <div class="sub" id="dexSub"></div>
+  <div id="chips"></div>
+  <div id="cards"></div>
+</div></div>
+
+<div id="help"><div class="card">
+  <h2>VIVARIUM</h2>
+  <p>Een <b>kweekbak</b> met 570 deeltjes in zes soorten. Elke soort trekt de andere aan of stoot ze
+  af volgens een geheime 6&times;6-matrix &mdash; het <i>genoom</i> &mdash; die volledig vastligt door
+  één 32-bits <b>code</b>. Uit die simpele krachten ontstaat vanzelf iets dat leeft. Jouw taak is het
+  te vinden, te meten en te vangen.</p>
+
+  <h3>Safari</h3>
+  <p><b>Nieuwe seed</b> rolt een nieuw genoom. De scanner laat de bak eerst uitrazen en meet hem dan
+  180 stappen lang door: aantal lichamen, samenhang, rek, rotatie, afgelegde afstand, koersvastheid,
+  soortscheiding en symmetrie. Daaruit volgt het <b>archetype</b> en een Latijnse naam. Pas als de
+  meting rond is, kun je het specimen <b>vangen</b>; het belandt dan in je bestiarium.</p>
+  <p>Het oordeel ligt na dat ene venster vast, terwijl de bak gewoon doorleeft. Dat is met opzet:
+  een grensgeval valt per meetvenster net anders uit, en dan zou je vangst afhangen van het moment
+  waarop je de knop indrukt in plaats van van het organisme.</p>
+
+  <h3>Zeldzaamheid is gemeten, niet verzonnen</h3>
+  <p>Dezelfde simulatie is offline over <b>4200 willekeurige seeds</b> gedraaid. De grenzen tussen de
+  twaalf archetypen liggen op percentielen van die verdeling, dus &ldquo;zeldzaam&rdquo; betekent
+  letterlijk: dit komt bij zoveel procent van alle seeds voor. Een <b>Bloem</b> vind je bij ongeveer
+  één op de honderd.</p>
+
+  <h3>Kweeklab</h3>
+  <p>Je krijgt een onbekend doelorganisme te zien. Elke generatie brengt zes nakomelingen voort van
+  dezelfde ouder, allemaal vanaf dezelfde beginposities, zodat verschillen alleen uit het genoom
+  komen. Kies de nakomeling die het doel het dichtst benadert; die wordt de nieuwe ouder. Met
+  <b>straling</b> regel je hoe wild de mutaties zijn. Acht generaties, daarna is het doel voorbij.</p>
+
+  <h3>Wat de bak vast houdt</h3>
+  <p>De bak is altijd exact even groot en wordt nooit uitgerekt naar je scherm. Deeltjeszwermen zijn
+  chaotisch: een afwijking in de laatste bit groeit binnen honderden stappen uit tot een ander wezen.
+  Alleen zo levert dezelfde code overal hetzelfde organisme op &mdash; en kun je een vondst delen.</p>
+
+  <h3>Toetsen</h3>
+  <p><code>r</code> nieuwe seed &middot; <code>m</code> muteren &middot; <code>c</code> vangen &middot;
+  <code>l</code> kweeklab &middot; <code>b</code> bestiarium &middot; <code>i</code> deze uitleg
+  &middot; <code>esc</code> terug naar de safari. Sleep over de bak om de zwerm op te schrikken.</p>
+
+  <p class="cr">Eén zelfstandig HTML-bestand &middot; geen libraries, geen netwerk, geen bestanden.
+  Vangsten staan in de opslag van je eigen browser. Gebouwd met Claude.</p>
+  <button id="helpClose">sluiten</button>
+</div></div>
+
+<div id="toast"></div>
+<div id="hud"></div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+
+/* ============================================================
+   1. SIMULATIE  (force law identiek aan primordium.html)
+   ============================================================ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+// De kweekbak is ALTIJD exact 640x440 met 570 deeltjes: dezelfde getallen als de
+// offline steekproef waaruit de zeldzaamheidstabel komt. Deeltjeszwermen zijn
+// chaotisch, dus zelfs een afwijking in de laatste bit groeit binnen 600 stappen
+// uit tot een ander organisme. Alleen bij identieke rekenkunde levert een seed
+// overal hetzelfde wezen op — daarom rekt het scherm de bak niet op, maar toont
+// het hem passend met zwarte randen.
+const WORLD_W=640, WORLD_H=440, NPART=570, KSPEC=6, ASPECT=WORLD_W/WORLD_H;
+
+const DISH=0x5eed1a2b;   // de vaste startopstelling van de kweekschaal
+
+// Vingerafdruk van een genoom: identificeert gemuteerde organismen.
+function matHash(mat){
+  let h=0x811c9dc5;
+  for(let i=0;i<mat.length;i++){
+    h^=Math.round(mat[i]*1000)&0xffff;
+    h=Math.imul(h,0x01000193);
+  }
+  return h>>>0;
+}
+
+class Sim{
+  constructor(W=WORLD_W,H=WORLD_H,n=NPART,k=KSPEC,rN=0.105){
+    this.k=k;this.n=n;this.rN=rN;
+    this.force=11;this.fhl=0.04;this.beta=0.3;this.dt=0.02;
+    this.mat=new Float32Array(k*k);
+    this.x=new Float32Array(n);this.y=new Float32Array(n);
+    this.vx=new Float32Array(n);this.vy=new Float32Array(n);
+    this.typ=new Uint8Array(n);this.nxt=new Int32Array(n);
+    this.tx=new Float64Array(n);this.ty=new Float64Array(n);this.tp=new Float64Array(n);
+    this.tracking=false;this.seen=[];
+    this.resize(W,H);
+  }
+  resize(W,H){
+    this.W=W;this.H=H;
+    this.rMax=this.rN*Math.min(W,H);            // exact zoals primordium.html
+    this.cols=Math.max(1,Math.floor(W/this.rMax));
+    this.rows=Math.max(1,Math.floor(H/this.rMax));
+    this.head=new Int32Array(this.cols*this.rows);
+    // alleen bij een piepklein raster kan dezelfde cel twee keer in de 3x3 vallen
+    this.dedupe=this.cols<3||this.rows<3;
+  }
+  matFromSeed(seed){
+    const r=mulberry32((seed>>>0)||1),k=this.k;
+    for(let i=0;i<k*k;i++)this.mat[i]=r()*2-1;
+    this.seed=seed>>>0;this.custom=false;
+    return r;
+  }
+  // Gekweekte genomen starten altijd in dezelfde vaste opstelling: de kweekschaal.
+  // Dat doet twee dingen tegelijk. Een genoom levert overal hetzelfde organisme op,
+  // dus wat je in het lab kweekt is exact wat de safari later meet. En binnen een
+  // generatie starten alle nakomelingen gelijk, zodat verschillen tussen hen uit
+  // het genoom komen en niet uit de loting — anders selecteer je op ruis.
+  // (Organismen mét seed houden hun eigen, uit de seed afgeleide opstelling.)
+  populate(rnd){
+    const r=rnd||mulberry32(DISH);
+    for(let i=0;i<this.n;i++){
+      this.x[i]=r()*this.W;this.y[i]=r()*this.H;
+      this.vx[i]=0;this.vy[i]=0;this.typ[i]=(r()*this.k)|0;
+    }
+  }
+  fromSeed(seed){const r=this.matFromSeed(seed);this.populate(r);return this;}
+  mutate(amt){
+    for(let i=0,L=this.k*this.k;i<L;i++){
+      const v=this.mat[i]+(Math.random()*2-1)*amt;
+      this.mat[i]=v<-1?-1:v>1?1:v;
+    }
+    this.custom=true;
+  }
+  track(){this.tx.fill(0);this.ty.fill(0);this.tp.fill(0);this.tracking=true;}
+  grid(){
+    const {n,x,y,cols,rows,head,nxt}=this,cw=this.W/cols,ch=this.H/rows;
+    head.fill(-1);
+    for(let i=0;i<n;i++){
+      let cx=(x[i]/cw)|0;if(cx>=cols)cx=cols-1;else if(cx<0)cx=0;
+      let cy=(y[i]/ch)|0;if(cy>=rows)cy=rows-1;else if(cy<0)cy=0;
+      const c=cy*cols+cx;nxt[i]=head[c];head[c]=i;
+    }
+  }
+  step(){
+    const {n,x,y,vx,vy,typ,nxt,head,cols,rows,mat,k,W,H}=this;
+    const rM=this.rMax,r2=rM*rM,cw=W/cols,ch=H/rows;
+    // dt/fhl ligt vast op 0,5; sqrt is door IEEE754 exact voorgeschreven en Math.pow
+    // niet, dus dit houdt de dynamica bit-identiek in elke browser.
+    const ff=Math.SQRT1_2,fpf=rM*this.force;
+    const beta=this.beta,ib=1/(1-beta),seen=this.seen,dt=this.dt,dedupe=this.dedupe;
+    this.grid();
+    for(let i=0;i<n;i++){
+      let fx=0,fy=0;const xi=x[i],yi=y[i],ti=typ[i]*k;
+      let cx=(xi/cw)|0;if(cx>=cols)cx=cols-1;else if(cx<0)cx=0;
+      let cy=(yi/ch)|0;if(cy>=rows)cy=rows-1;else if(cy<0)cy=0;
+      if(dedupe)seen.length=0;
+      for(let oy=-1;oy<=1;oy++){
+        const ccy=(cy+oy+rows)%rows;
+        for(let ox=-1;ox<=1;ox++){
+          const cid=ccy*cols+((cx+ox+cols)%cols);
+          if(dedupe){if(seen.indexOf(cid)>=0)continue;seen.push(cid);}
+          let j=head[cid];
+          while(j!==-1){
+            if(j!==i){
+              let dx=x[j]-xi,dy=y[j]-yi;
+              if(dx>W*.5)dx-=W;else if(dx<-W*.5)dx+=W;
+              if(dy>H*.5)dy-=H;else if(dy<-H*.5)dy+=H;
+              const d2=dx*dx+dy*dy;
+              if(d2>0&&d2<r2){
+                const d=Math.sqrt(d2),rr=d/rM;
+                let f;
+                if(rr<beta)f=rr/beta-1;
+                else f=mat[ti+typ[j]]*(1-Math.abs(2*rr-1-beta)*ib);
+                const id=f/d;fx+=dx*id;fy+=dy*id;
+              }
+            }
+            j=nxt[j];
+          }
+        }
+      }
+      let nvx=vx[i]*ff+fx*fpf*dt,nvy=vy[i]*ff+fy*fpf*dt;
+      if(stir.on){
+        const dx=xi-stir.x,dy=yi-stir.y,md=Math.sqrt(dx*dx+dy*dy);
+        if(md<stir.r&&md>0){const pp=(1-md/stir.r)*stir.s/md;nvx+=dx*pp;nvy+=dy*pp;}
+      }
+      vx[i]=nvx;vy[i]=nvy;
+    }
+    const tk=this.tracking;
+    for(let i=0;i<n;i++){
+      const dx=vx[i]*dt,dy=vy[i]*dt;
+      if(tk){this.tx[i]+=dx;this.ty[i]+=dy;this.tp[i]+=Math.sqrt(dx*dx+dy*dy);}
+      x[i]+=dx;y[i]+=dy;
+      if(x[i]<0)x[i]+=W;else if(x[i]>=W)x[i]-=W;
+      if(y[i]<0)y[i]+=H;else if(y[i]>=H)y[i]-=H;
+    }
+  }
+}
+
+/* ============================================================
+   2. MEETMODULE  (identiek aan de offline sampler)
+   ============================================================ */
+const wrapD=(d,L)=>d>L*.5?d-L:(d<-L*.5?d+L:d);
+const MIN_BODY=8;
+
+// Eén burenpas levert zowel de clusterindeling als de soortscheiding:
+// beide lopen over dezelfde paren, dus dat scheelt de helft van het werk.
+function analyse(s,linkFrac=0.6){
+  const {n,x,y,typ,cols,rows,head,nxt,W,H,k}=s;
+  const link=s.rMax*linkFrac,l2=link*link,r2=s.rMax*s.rMax,cw=W/cols,ch=H/rows;
+  s.grid();
+  const par=new Int32Array(n);for(let i=0;i<n;i++)par[i]=i;
+  const find=i=>{while(par[i]!==i){par[i]=par[par[i]];i=par[i];}return i;};
+  let same=0,tot=0;
+  for(let i=0;i<n;i++){
+    let cx=(x[i]/cw)|0;if(cx>=cols)cx=cols-1;else if(cx<0)cx=0;
+    let cy=(y[i]/ch)|0;if(cy>=rows)cy=rows-1;else if(cy<0)cy=0;
+    for(let oy=-1;oy<=1;oy++){
+      const ccy=(cy+oy+rows)%rows;
+      for(let ox=-1;ox<=1;ox++){
+        let j=head[ccy*cols+((cx+ox+cols)%cols)];
+        while(j!==-1){
+          if(j>i){
+            const dx=wrapD(x[j]-x[i],W),dy=wrapD(y[j]-y[i],H),d2=dx*dx+dy*dy;
+            if(d2<r2){
+              tot++;if(typ[i]===typ[j])same++;
+              if(d2<l2){const a=find(i),b=find(j);if(a!==b)par[b]=a;}
+            }
+          }
+          j=nxt[j];
+        }
+      }
+    }
+  }
+  const groups=new Map();
+  for(let i=0;i<n;i++){const r=find(i);let g=groups.get(r);if(!g)groups.set(r,g=[]);g.push(i);}
+  const e=1/k;
+  return {groups:[...groups.values()],seg:tot?(same/tot-e)/(1-e):0};
+}
+
+function clusterStats(s,idx){
+  const {x,y,vx,vy,W,H}=s,N=idx.length,TAU=Math.PI*2;
+  let sx=0,cxa=0,sy=0,cya=0;
+  for(const i of idx){
+    const ax=x[i]/W*TAU,ay=y[i]/H*TAU;
+    cxa+=Math.cos(ax);sx+=Math.sin(ax);cya+=Math.cos(ay);sy+=Math.sin(ay);
+  }
+  const gx=((Math.atan2(sx/N,cxa/N)+TAU)%TAU)/TAU*W,
+        gy=((Math.atan2(sy/N,cya/N)+TAU)%TAU)/TAU*H;
+  let mxx=0,myy=0,mxy=0,spread=0,L=0,rvSum=0,mvx=0,mvy=0,spd=0;
+  const dxs=new Float64Array(N),dys=new Float64Array(N);
+  for(let q=0;q<N;q++){
+    const i=idx[q],dx=wrapD(x[i]-gx,W),dy=wrapD(y[i]-gy,H);
+    dxs[q]=dx;dys[q]=dy;
+    mxx+=dx*dx;myy+=dy*dy;mxy+=dx*dy;
+    spread+=Math.sqrt(dx*dx+dy*dy);
+    mvx+=vx[i];mvy+=vy[i];
+  }
+  mvx/=N;mvy/=N;
+  for(let q=0;q<N;q++){
+    const i=idx[q],rx=dxs[q],ry=dys[q];
+    const ux=vx[i]-mvx,uy=vy[i]-mvy;
+    L+=rx*uy-ry*ux;
+    rvSum+=Math.sqrt((rx*rx+ry*ry)*(ux*ux+uy*uy));
+    spd+=Math.sqrt(vx[i]*vx[i]+vy[i]*vy[i]);
+  }
+  mxx/=N;myy/=N;mxy/=N;spread/=N;spd/=N;
+  const tr=mxx+myy,det=mxx*myy-mxy*mxy,disc=Math.max(0,tr*tr/4-det);
+  const l1=tr/2+Math.sqrt(disc),l2=Math.max(1e-9,tr/2-Math.sqrt(disc));
+  // n-voudige symmetrie: geen atan2 of cos/sin nodig. Uit de eenheidsvector
+  // (cos a, sin a) volgen alle machten m via de hoekverdubbelingsrecurrentie.
+  let symOrder=0,symStr=0;
+  const reS=new Float64Array(9),imS=new Float64Array(9);
+  for(let q=0;q<N;q++){
+    const dx=dxs[q],dy=dys[q],r=Math.sqrt(dx*dx+dy*dy);
+    if(r<1e-9)continue;
+    const c=dx/r,s=dy/r;
+    let cm=c,sm=s;
+    for(let m=2;m<=8;m++){
+      const nc=cm*c-sm*s,ns=sm*c+cm*s;cm=nc;sm=ns;
+      reS[m]+=cm;imS[m]+=sm;
+    }
+  }
+  for(let m=2;m<=8;m++){
+    const A=Math.sqrt(reS[m]*reS[m]+imS[m]*imS[m])/N;
+    if(A>symStr){symStr=A;symOrder=m;}
+  }
+  return {size:N,gx,gy,spread:spread/s.rMax,elong:Math.sqrt(l1/l2),
+    spin:rvSum>0?L/rvSum:0,drift:spd>1e-9?Math.hypot(mvx,mvy)/spd:0,
+    speed:spd/s.rMax,symOrder,symStr};
+}
+
+function snapshot(s){
+  const {groups:cs,seg}=analyse(s);
+  const bodies=[],dust=[];
+  for(const c of cs)(c.length>=MIN_BODY?bodies:dust).push(c);
+  const dustFrac=dust.reduce((a,c)=>a+c.length,0)/s.n;
+  let wsum=0,spread=0,elong=0,spin=0,drift=0,speed=0,symStr=0,symOrder=0,big=0;
+  const stats=bodies.map(b=>clusterStats(s,b)).sort((a,b)=>b.size-a.size);
+  for(const st of stats){
+    const w=st.size;wsum+=w;
+    spread+=st.spread*w;elong+=st.elong*w;spin+=st.spin*w;
+    drift+=st.drift*w;speed+=st.speed*w;
+  }
+  if(stats.length){symStr=stats[0].symStr;symOrder=stats[0].symOrder;big=stats[0].size/s.n;}
+  const d=wsum||1;
+  let allSpeed=0;
+  for(let i=0;i<s.n;i++)allSpeed+=Math.sqrt(s.vx[i]*s.vx[i]+s.vy[i]*s.vy[i]);
+  return {bodies:bodies.length,dustFrac,biggest:big,
+    spread:spread/d,elong:elong/d,spin:spin/d,drift:drift/d,speed:speed/d,
+    symOrder,symStr,seg,energy:allSpeed/s.n/s.rMax};
+}
+
+const KEYS=["bodies","dustFrac","biggest","spread","elong","spin","drift","speed",
+            "symOrder","symStr","seg","energy"];
+
+function aggregate(snaps,s){
+  const m={};
+  for(const k of KEYS)m[k]=snaps.reduce((a,x)=>a+x[k],0)/snaps.length;
+  m.spin=snaps.reduce((a,x)=>a+Math.abs(x.spin),0)/snaps.length;
+  let cv=0;
+  for(const k of ["bodies","spread","biggest"]){
+    const v=snaps.reduce((a,x)=>a+(x[k]-m[k])*(x[k]-m[k]),0)/snaps.length;
+    cv+=Math.sqrt(v)/Math.max(1e-6,Math.abs(m[k]));
+  }
+  m.stability=1/(1+cv/3*4);
+  m.symOrder=Math.round(m.symOrder);
+  let net=0,path=0,straight=0;
+  for(let i=0;i<s.n;i++){
+    const d=Math.sqrt(s.tx[i]*s.tx[i]+s.ty[i]*s.ty[i]);
+    net+=d;path+=s.tp[i];straight+=s.tp[i]>1e-9?d/s.tp[i]:0;
+  }
+  m.travel=net/s.n/s.rMax;
+  m.path=path/s.n/s.rMax;
+  m.straight=straight/s.n;
+  return m;
+}
+
+/* ---- classificatie: drempels komen uit de offline steekproef ---- */
+const ARCH={
+  Bloem:      {c:"#ff6fae",d:"radiaal symmetrisch lichaam met duidelijke armen"},
+  Ketting:    {c:"#f3c14b",d:"langgerekte, kronkelende strengen"},
+  Nevel:      {c:"#8fa3c8",d:"losse deeltjeswolk zonder samenhangend lichaam"},
+  Satellieten:{c:"#ff9d5c",d:"kern met kleinere lichamen eromheen"},
+  Rotor:      {c:"#c98bd6",d:"draaiend lichaam met eigen impulsmoment"},
+  Membraan:   {c:"#5ce29a",d:"soorten scheiden zich in vliezen en schillen"},
+  Storm:      {c:"#ff7a45",d:"hoge energie, koersloos gewoel"},
+  Zwemmer:    {c:"#39e0c8",d:"samenhangend lichaam op een vaste koers"},
+  Zwerm:      {c:"#e2613a",d:"één grote, wijd uitgesmeerde massa"},
+  Kristal:    {c:"#9fd8ff",d:"vrijwel stilstaand, bevroren weefsel"},
+  Drijver:    {c:"#7fb2d9",d:"traag drijvende lichamen, nauwelijks verplaatsing"},
+  Kolonie:    {c:"#b8c4d8",d:"meerdere losse lichamen naast elkaar"}
+};
+// Populatiefrequenties, gemeten over 4200 willekeurige seeds met exact deze
+// meetmodule en deze bakafmetingen.
+const POP={Kolonie:0.3840,Drijver:0.1574,Kristal:0.0812,Zwerm:0.0679,Zwemmer:0.0598,
+  Storm:0.0474,Membraan:0.0467,Rotor:0.0424,Satellieten:0.0398,Nevel:0.0362,
+  Ketting:0.0269,Bloem:0.0105};
+
+// Drempels liggen op percentielen uit diezelfde steekproef; de volgorde bepaalt
+// welk kenmerk voorrang krijgt als een organisme meerdere dingen tegelijk doet.
+function classify(m){
+  if(m.dustFrac>0.24&&m.biggest<0.35)               return "Nevel";
+  if(m.energy<0.22&&m.stability>0.55)               return "Kristal";
+  if(m.spin>0.26)                                   return "Rotor";
+  if(m.elong>2.45)                                  return "Ketting";
+  if(m.symStr>0.58&&m.bodies<=12)                   return "Bloem";
+  if(m.seg>0.25)                                    return "Membraan";
+  if(m.travel>3.5&&m.straight>0.75)                 return "Zwemmer";
+  if(m.energy>2.0)                                  return "Storm";
+  if(m.biggest>0.58)                                return "Zwerm";
+  if(m.bodies>=4&&m.biggest>0.30&&m.dustFrac>0.12)  return "Satellieten";
+  if(m.travel<0.8&&m.bodies>=3)                     return "Drijver";
+  return "Kolonie";
+}
+function rarity(arch){
+  const p=POP[arch]||0.1;
+  const t=p<0.015?"legendarisch":p<0.04?"zeer zeldzaam":p<0.08?"zeldzaam":
+          p<0.20?"ongewoon":"algemeen";
+  return {p,t};
+}
+
+/* ---- naamgeving: deterministisch uit de seed ---- */
+const GENUS={Nevel:"Nebula",Kristal:"Crystallum",Ketting:"Catena",Rotor:"Rotula",
+  Zwemmer:"Natator",Satellieten:"Comitatus",Membraan:"Membrana",Zwerm:"Grex",
+  Kolonie:"Colonia",Bloem:"Flos",Storm:"Tempestas",Drijver:"Quies"};
+const SYL=["ax","bel","cor","dus","el","fer","gil","hor","ix","lum","mor","nix","ol","pex",
+  "quor","ris","sol","tus","ul","vex","xan","yr","zon","ther","dra","phos","mir","cen"];
+function latin(seed,arch){
+  const r=mulberry32((seed>>>0)^0x5bf03635);
+  let s="";const parts=2+(r()<0.35?1:0);
+  for(let i=0;i<parts;i++)s+=SYL[(r()*SYL.length)|0];
+  return (GENUS[arch]||"Incognita")+" "+s;
+}
+const code=s=>(s>>>0).toString(36).padStart(6,"0");
+
+/* ============================================================
+   3. WERELD, RENDER, INTERACTIE
+   ============================================================ */
+const cv=$("c"),ctx=cv.getContext("2d",{alpha:false});
+const stir={on:false,x:0,y:0,r:0,s:0};
+let sim=null,view={s:1,ox:0,oy:0},dpr=1;
+let cols_=[];
+// Iets donkerder dan de bronkleur: bij additief mengen slaan lichte kleuren
+// binnen enkele beelden naar wit door en verdwijnt het onderscheid tussen soorten.
+function buildColors(k){cols_=[];for(let i=0;i<k;i++)cols_.push("hsl("+(i/k*360|0)+",95%,52%)");}
+
+function layout(){
+  dpr=Math.min(2,devicePixelRatio||1);
+  const w=innerWidth,h=innerHeight;
+  cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+"px";cv.style.height=h+"px";
+  if(!sim)sim=new Sim();                             // vaste kweekbak van 640x440
+  view.s=Math.min(cv.width/sim.W,cv.height/sim.H);   // passend, niet uitgerekt
+  view.ox=(cv.width-sim.W*view.s)/2;
+  view.oy=(cv.height-sim.H*view.s)/2;
+  // staand scherm: het paneel beslaat de onderste helft, dus de bak naar boven
+  if(cv.height>cv.width*1.1)view.oy=Math.min(view.oy,58*dpr);
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle="#030407";ctx.fillRect(0,0,cv.width,cv.height);
+  stir.r=sim.rMax*1.6;
+}
+addEventListener("resize",layout);
+
+// Tekent een willekeurige bak passend in een canvas. De puntgrootte staat vast in
+// schermpixels: bij additief mengen lopen te grote stippen in elkaar en slaat
+// alles wit uit, hoe verder je inzoomt.
+function drawSim(s,g,cw,ch,{fade=0.20,radPx=2.6,clear=false}={}){
+  const sc=Math.min(cw/s.W,ch/s.H);
+  const ox=Math.round((cw-s.W*sc)/2),oy=Math.round((ch-s.H*sc)/2);
+  g.setTransform(sc,0,0,sc,ox,oy);
+  g.save();
+  // Klem af op de bak, en vervaag met wat overschot. Zonder dat blijft de buitenste
+  // pixelrij half gedekt, stapelen de sporen daar op en ontstaat een witte streep.
+  g.beginPath();g.rect(0,0,s.W,s.H);g.clip();
+  g.globalCompositeOperation="source-over";
+  g.fillStyle=clear?"#05060a":"rgba(5,6,10,"+fade+")";
+  g.fillRect(-2,-2,s.W+4,s.H+4);
+  g.globalCompositeOperation="lighter";
+  const rad=radPx/sc,TAU=6.2832;
+  for(let t=0;t<s.k;t++){
+    g.fillStyle=cols_[t];g.beginPath();
+    for(let i=0;i<s.n;i++)if(s.typ[i]===t){
+      g.moveTo(s.x[i]+rad,s.y[i]);g.arc(s.x[i],s.y[i],rad,0,TAU);
+    }
+    g.fill();
+  }
+  g.restore();
+}
+function draw(){drawSim(sim,ctx,cv.width,cv.height,{radPx:2.6*dpr});}
+
+function toWorld(ev){
+  const r=cv.getBoundingClientRect();
+  const px=(ev.clientX-r.left)*(cv.width/r.width),py=(ev.clientY-r.top)*(cv.height/r.height);
+  return {x:(px-view.ox)/view.s,y:(py-view.oy)/view.s};
+}
+cv.addEventListener("pointerdown",e=>{const p=toWorld(e);stir.on=true;stir.x=p.x;stir.y=p.y;stir.s=sim.rMax*0.9;});
+cv.addEventListener("pointermove",e=>{if(!stir.on)return;const p=toWorld(e);stir.x=p.x;stir.y=p.y;});
+addEventListener("pointerup",()=>{stir.on=false;});
+
+/* ============================================================
+   4. SCANNER: warmdraaien -> meetvenster -> classificatie
+   ============================================================ */
+const WARM=420,SPAN=180,EVERY=30,BOOST=3;   // warm-up draait op 3x snelheid
+const S={phase:"warm",f:0,snaps:[],m:null,arch:null,locked:false};
+
+function rescan(seed,keepMatrix){
+  if(!keepMatrix)sim.fromSeed(seed);
+  else sim.populate();
+  S.phase="warm";S.f=0;S.snaps=[];S.m=null;S.arch=null;S.locked=false;
+  sim.tracking=false;
+  $("seedIn").value=sim.custom?"gemuteerd":code(sim.seed);
+  $("bCatch").disabled=true;
+  $("bCatch").innerHTML="&#128247; vang specimen";
+  paintMetrics(null);
+  $("verdict").classList.remove("live");
+  $("vName").textContent="—";
+  $("vArch").textContent="niet geclassificeerd";
+  $("vRare").textContent="stabiliseer het organisme om te classificeren";
+}
+
+function scanTick(){
+  if(S.phase==="warm"){
+    for(let b=0;b<BOOST;b++){sim.step();S.f++;if(S.f>=WARM)break;}
+    setLock(S.f/(WARM+SPAN),"stabiliseren · "+((S.f/WARM*100)|0)+"%");
+    if(S.f>=WARM){S.phase="measure";S.f=0;S.snaps=[];sim.track();}
+    return;
+  }
+  if(S.phase==="idle"){sim.step();return;}   // oordeel staat vast; de bak leeft door
+  // Zelfde volgorde als de offline steekproef: eerst meten, dan stappen. Eén stap
+  // verschil kan bij grensgevallen een ander archetype opleveren.
+  if(S.f%EVERY===0){
+    S.snaps.push(snapshot(sim));
+    if(S.f>=SPAN){
+      S.m=aggregate(S.snaps,sim);
+      S.arch=classify(S.m);
+      S.locked=true;
+      S.phase="idle";
+      // Precies één meetvenster, net als de offline steekproef. Zou de scanner
+      // blijven doormeten, dan wisselt een grensgeval per venster van archetype
+      // en hangt je vangst af van het moment waarop je de knop indrukt.
+      sim.tracking=false;
+      showVerdict();
+      setLock(1,"vastgelegd");
+      return;
+    }
+  }
+  sim.step();
+  S.f++;
+  setLock((WARM+S.f)/(WARM+SPAN),"meten · "+((S.f/SPAN*100)|0)+"%");
+}
+function setLock(f,txt){
+  $("lockFill").style.width=Math.min(100,f*100)+"%";
+  $("lockTxt").textContent=txt;
+}
+
+/* metriek-uitlezing */
+const SHOW=[
+  {k:"bodies", t:"lichamen", max:24, f:v=>v.toFixed(1)},
+  {k:"biggest",t:"kern",     max:1,  f:v=>(v*100|0)+"%"},
+  {k:"spread", t:"omvang",   max:4,  f:v=>v.toFixed(2)},
+  {k:"elong",  t:"rek",      max:4,  f:v=>v.toFixed(2)},
+  {k:"spin",   t:"rotatie",  max:1,  f:v=>v.toFixed(2)},
+  {k:"travel", t:"afstand",  max:6,  f:v=>v.toFixed(2)},
+  {k:"straight",t:"koers",   max:1,  f:v=>v.toFixed(2)},
+  {k:"seg",    t:"scheiding",max:1,  f:v=>v.toFixed(2)},
+  {k:"symStr", t:"symmetrie",max:1,  f:v=>v.toFixed(2)},
+  {k:"stability",t:"stabiel",max:1,  f:v=>v.toFixed(2)}
+];
+const mEls={};
+(function buildMetrics(){
+  const box=$("metrics");
+  for(const d of SHOW){
+    const row=document.createElement("div");row.className="m";
+    row.innerHTML='<i>'+d.t+'</i><u><s></s></u><b>–</b>';
+    box.appendChild(row);
+    mEls[d.k]={bar:row.querySelector("s"),val:row.querySelector("b"),d};
+  }
+})();
+function paintMetrics(m){
+  for(const d of SHOW){
+    const e=mEls[d.k],v=m?m[d.k]:0;
+    e.bar.style.width=m?Math.min(100,v/d.max*100)+"%":"0%";
+    e.val.textContent=m?d.f(v):"–";
+  }
+}
+
+function currentId(){return sim.custom?"m"+hashMatrix():code(sim.seed);}
+function showVerdict(){
+  const a=S.arch,r=rarity(a),nm=latin(sim.custom?hashMatrix():sim.seed,a);
+  const newKind=!dex.some(e=>e.arch===a);
+  const had=dex.some(e=>e.id===currentId());
+  $("verdict").classList.add("live");
+  $("vName").textContent=nm;
+  $("vArch").textContent=a;
+  $("vArch").style.color=ARCH[a].c;
+  $("vRare").innerHTML=ARCH[a].d+"<br><b>"+r.t+"</b> · "+(r.p*100).toFixed(1)+"% van alle seeds"+
+    (newKind?'<span class="new">nieuw archetype</span>':"");
+  // al gevangen specimens blijven geblokkeerd, ook na een nieuw meetvenster
+  $("bCatch").disabled=had;
+  $("bCatch").innerHTML=had?"&#10003; al in bestiarium":"&#128247; vang specimen";
+  paintMetrics(S.m);
+  checkContract();
+}
+// gemuteerde organismen hebben geen seed meer: hun genoom-vingerafdruk dient als naam
+function hashMatrix(){return matHash(sim.mat);}
+
+/* ============================================================
+   5. BESTIARIUM
+   ============================================================ */
+const DEXKEY="vivarium.dex.v1";
+// localStorage ontbreekt bij data:-URLs en in sommige privacymodi; dan houden we
+// de vangsten alleen in het geheugen zodat het spel blijft werken.
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v;}catch(e){return d;}},
+  set(k,v){try{localStorage.setItem(k,v);return true;}catch(e){return false;}}
+};
+let dex=[];
+try{dex=JSON.parse(store.get(DEXKEY,"[]"));}catch(e){dex=[];}
+function saveDex(){
+  if(!store.set(DEXKEY,JSON.stringify(dex)))toast("opslag niet beschikbaar — alleen deze sessie");
+  refreshRank();
+}
+function refreshRank(){
+  $("rCount").textContent=dex.length;
+  $("rKinds").textContent=new Set(dex.map(e=>e.arch)).size;
+  $("rCtr").textContent=contractsDone;
+}
+function thumb(){
+  const t=document.createElement("canvas");
+  t.width=336;t.height=Math.round(336/ASPECT);
+  const g=t.getContext("2d");
+  g.fillStyle="#05060a";g.fillRect(0,0,t.width,t.height);
+  // alleen de kweekbak zelf, zonder de zwarte randen eromheen
+  g.drawImage(cv,view.ox,view.oy,sim.W*view.s,sim.H*view.s,0,0,t.width,t.height);
+  return t.toDataURL("image/png");
+}
+function capture(){
+  if(!S.locked)return;
+  const id=currentId();
+  if(dex.some(e=>e.id===id)){toast("dit specimen zit al in je bestiarium");return;}
+  const a=S.arch;
+  dex.unshift({
+    id,seed:sim.custom?null:sim.seed,
+    mat:sim.custom?Array.from(sim.mat,v=>+v.toFixed(3)):null,
+    arch:a,name:latin(sim.custom?hashMatrix():sim.seed,a),
+    m:{bodies:+S.m.bodies.toFixed(1),spin:+S.m.spin.toFixed(2),travel:+S.m.travel.toFixed(2),
+       sym:S.m.symOrder,symStr:+S.m.symStr.toFixed(2),seg:+S.m.seg.toFixed(2),
+       stab:+S.m.stability.toFixed(2)},
+    img:thumb(),ts:Date.now()
+  });
+  if(dex.length>120)dex.length=120;
+  saveDex();
+  const r=rarity(a);
+  toast("gevangen: <b>"+dex[0].name+"</b> · "+r.t);
+  $("bCatch").disabled=true;
+  $("bCatch").innerHTML="&#10003; al in bestiarium";
+  checkContract(true);
+}
+function renderChips(){
+  const box=$("chips");box.innerHTML="";
+  const have=new Set(dex.map(e=>e.arch));
+  for(const a of Object.keys(ARCH)){
+    const c=document.createElement("span");
+    const n=dex.filter(e=>e.arch===a).length;
+    c.className="chip"+(have.has(a)?" has":"");
+    if(have.has(a))c.style.background=ARCH[a].c;
+    c.innerHTML=(have.has(a)?a:"?????")+(n?"<u>"+n+"</u>":"");
+    c.title=have.has(a)?ARCH[a].d:"nog niet ontdekt · "+(rarity(a).p*100).toFixed(1)+"% van alle seeds";
+    box.appendChild(c);
+  }
+}
+function renderDex(){
+  renderChips();
+  const box=$("cards");box.innerHTML="";
+  $("dexSub").textContent=dex.length?dex.length+" specimens · "+
+    new Set(dex.map(e=>e.arch)).size+" van 12 archetypen · klik om te herladen":"";
+  if(!dex.length){
+    box.innerHTML='<div class="empty">Nog niets gevangen.<br>Ga terug naar de safari, '+
+      'stabiliseer een organisme en druk op <b>vang specimen</b>.</div>';
+    return;
+  }
+  for(const e of dex){
+    const d=document.createElement("div");d.className="card";
+    d.innerHTML='<img src="'+e.img+'" alt=""><div class="b">'+
+      '<div class="n">'+e.name+'</div>'+
+      '<div class="a" style="color:'+ARCH[e.arch].c+'">'+e.arch+'</div>'+
+      '<div class="s">rot '+e.m.spin.toFixed(2)+' · afst '+e.m.travel.toFixed(2)+
+      ' · sym '+e.m.sym+' · stab '+e.m.stab.toFixed(2)+'<br>'+e.id+'</div></div>';
+    d.onclick=()=>{
+      if(e.seed!=null)rescan(e.seed);
+      else{sim.mat.set(e.mat);sim.custom=true;rescan(null,true);}
+      showTab("saf");
+      toast("herladen: <b>"+e.name+"</b>");
+    };
+    box.appendChild(d);
+  }
+}
+
+/* ============================================================
+   6. CONTRACTEN
+   ============================================================ */
+let contractsDone=+store.get("vivarium.ctr",0)||0;
+let contract=null;
+// De percentages komen uit de steekproef van 4000 seeds: elk contract wordt door
+// 2,5 tot 8% van alle organismen gehaald, dus een handvol scans of een paar mutaties.
+const CONTRACTS=[
+  {t:"Vind een Rotor",d:"Een lichaam met eigen impulsmoment — het draait om zichzelf.",
+   p:"4,2%",ok:m=>classify(m)==="Rotor"},
+  {t:"Vind een Zwemmer",d:"Een samenhangend lichaam dat een vaste koers aanhoudt.",
+   p:"6,0%",ok:m=>classify(m)==="Zwemmer"},
+  {t:"Vind een Membraan",d:"Soorten die zich scheiden in vliezen en schillen.",
+   p:"4,7%",ok:m=>classify(m)==="Membraan"},
+  {t:"Vind een Kristal",d:"Weefsel dat vrijwel tot stilstand is gekomen.",
+   p:"8,1%",ok:m=>classify(m)==="Kristal"},
+  {t:"Vind een Ketting",d:"Langgerekte strengen in plaats van bollen.",
+   p:"2,7%",ok:m=>classify(m)==="Ketting"},
+  {t:"Vijfvoudige symmetrie",d:"Een lichaam waarvan de sterkste symmetrie vijf of meer armen telt.",
+   p:"2,7%",ok:m=>m.symOrder>=5},
+  {t:"Volhardend van vorm",d:"Een organisme dat nauwelijks van vorm verandert (stabiel > 0,75).",
+   p:"4,8%",ok:m=>m.stability>0.75},
+  {t:"Eenzame kolos",d:"Eén lichaam dat meer dan 70% van alle materie bevat.",
+   p:"6,1%",ok:m=>m.biggest>0.70},
+  {t:"Wemelende veelheid",d:"Minstens twintig afzonderlijke lichamen tegelijk.",
+   p:"7,9%",ok:m=>m.bodies>=20},
+  {t:"Drie of minder",d:"Alle materie verzameld in hoogstens drie lichamen.",
+   p:"2,5%",ok:m=>m.bodies<=3}
+];
+function newContract(){
+  contract=CONTRACTS[(Math.random()*CONTRACTS.length)|0];
+  $("ctrT").textContent=contract.t;
+  $("ctrD").textContent=contract.d+" Komt voor bij "+contract.p+" van alle seeds.";
+  $("ctrP").textContent="status: nog niet voldaan";
+}
+function checkContract(onCapture){
+  if(!contract||!S.m)return;
+  const ok=contract.ok(S.m);
+  $("ctrP").textContent=ok?"status: VOLDAAN — vang het specimen":"status: nog niet voldaan";
+  $("ctrP").style.color=ok?"var(--g)":"";
+  if(ok&&onCapture){
+    contractsDone++;store.set("vivarium.ctr",contractsDone);
+    toast("contract voltooid · <b>"+contract.t+"</b>");
+    refreshRank();newContract();
+  }
+}
+/* ============================================================
+   6b. KWEEKLAB — gerichte selectie naar een meetbaar kweekdoel
+   ------------------------------------------------------------
+   Een eerdere opzet liet je een verborgen doelorganisme namaken, met een
+   gelijkenisscore als maatstaf. Uit een ijking over 40 paren bleek die maatstaf
+   onbruikbaar: twee onverwante genomen halen in een kwart van de gevallen al 77
+   van de 100, terwijl twee metingen van hetzelfde genoom mediaan op 79 blijven
+   staan. De verdelingen overlappen te sterk om er een winstgrens in te leggen.
+   Daarom kweek je hier naar een expliciet, meetbaar doel — dat is bovendien
+   precies wat gerichte selectie in het echt is.
+   ============================================================ */
+const LAB={KIDS:6,GENS:8,WARM:420,SPAN:180,EVERY:30};
+const MUT_RATE=0.25;   // kans dat een afzonderlijk gen muteert
+
+// Doelen komen uit dezelfde meetmodule als de safari. Het percentage is hoe vaak
+// een willekeurige seed het doel haalt: dat is precies waarom je ervoor kweekt.
+// fit() is de geschiktheid van 0 tot 1 waarop de nakomelingen worden gerangschikt.
+// Die weegt élke voorwaarde mee: een Bloem vraagt niet alleen sterke symmetrie maar
+// ook weinig lichamen, en dan moet de selectiedruk op beide staan. ok() is de
+// werkelijke winstvoorwaarde; die kan strenger zijn, want een archetype wordt pas
+// toegekend als geen eerder kenmerk voorrang opeist.
+const cap=(v,t)=>Math.min(1,Math.max(0,v/t));
+const GOALS=[
+  {t:"Kweek een Rotor",d:"Een lichaam dat om zichzelf draait.",p:"4,2%",
+   k:"spin",mk:"rotatie",tgt:0.26,fmt:v=>v.toFixed(2),
+   fit:m=>cap(m.spin,0.26),ok:m=>classify(m)==="Rotor"},
+  {t:"Kweek een Bloem",d:"Radiaal symmetrisch, met duidelijke armen, en samengebald in weinig lichamen. In het wild het zeldzaamst.",
+   p:"1,0%",k:"symStr",mk:"symmetrie",tgt:0.58,fmt:v=>v.toFixed(2),
+   fit:m=>cap(m.symStr,0.58)*cap(12/Math.max(1,m.bodies),1),ok:m=>classify(m)==="Bloem"},
+  {t:"Kweek een Ketting",d:"Langgerekte strengen in plaats van bollen.",p:"2,7%",
+   k:"elong",mk:"rek",tgt:2.45,fmt:v=>v.toFixed(2),
+   fit:m=>cap(m.elong,2.45),ok:m=>classify(m)==="Ketting"},
+  {t:"Kweek een Membraan",d:"De zes soorten scheiden zich in vliezen en schillen.",p:"4,7%",
+   k:"seg",mk:"scheiding",tgt:0.25,fmt:v=>v.toFixed(2),
+   fit:m=>cap(m.seg,0.25),ok:m=>classify(m)==="Membraan"},
+  {t:"Kweek een Zwemmer",d:"Een samenhangend lichaam dat een vaste koers aanhoudt.",p:"6,0%",
+   k:"travel",mk:"afstand",tgt:3.5,fmt:v=>v.toFixed(1),
+   fit:m=>cap(m.travel,3.5)*cap(m.straight,0.75),ok:m=>classify(m)==="Zwemmer"},
+  {t:"Vijfvoudige symmetrie",d:"De sterkste symmetrie telt vijf armen of meer.",p:"2,7%",
+   k:"symOrder",mk:"armen",tgt:5,fmt:v=>v.toFixed(0),
+   fit:m=>cap(m.symOrder,5),ok:m=>m.symOrder>=5},
+  {t:"Eenzame kolos",d:"Eén lichaam met meer dan 70% van alle materie.",p:"6,1%",
+   k:"biggest",mk:"kern",tgt:0.70,fmt:v=>(v*100).toFixed(0)+"%",
+   fit:m=>cap(m.biggest,0.70),ok:m=>m.biggest>0.70},
+  {t:"Wemelende veelheid",d:"Twintig of meer afzonderlijke lichamen tegelijk.",p:"7,9%",
+   k:"bodies",mk:"lichamen",tgt:20,fmt:v=>v.toFixed(1),
+   fit:m=>cap(m.bodies,20),ok:m=>m.bodies>=20},
+  {t:"Onwrikbaar van vorm",d:"Een organisme dat vrijwel niet meer van vorm verandert.",p:"2,0%",
+   k:"stability",mk:"stabiliteit",tgt:0.80,fmt:v=>v.toFixed(2),
+   fit:m=>cap(m.stability,0.80),ok:m=>m.stability>0.80}
+];
+
+const lab={on:false,gen:1,best:null,bestVal:null,goal:null,parent:null,kids:[],done:false,frame:0};
+
+// Een meting in uitvoering: warmdraaien, meetvenster, klaar.
+function labUnit(s){return {s,phase:"warm",f:0,snaps:[],m:null,arch:null,val:null,el:null};}
+function labAdvance(u,steps){
+  for(let i=0;i<steps&&u.phase!=="done";i++){
+    if(u.phase==="warm"){
+      u.s.step();
+      if(++u.f>=LAB.WARM){u.phase="measure";u.f=0;u.snaps=[];u.s.track();}
+    }else{
+      if(u.f%LAB.EVERY===0){
+        u.snaps.push(snapshot(u.s));
+        if(u.f>=LAB.SPAN){
+          u.m=aggregate(u.snaps,u.s);
+          u.arch=classify(u.m);
+          u.val=u.m[lab.goal.k];
+          u.fit=lab.goal.fit(u.m);
+          u.phase="done";
+          break;
+        }
+      }
+      u.s.step();u.f++;
+    }
+  }
+  return u.phase==="done";
+}
+const labProg=u=>u.phase==="done"?1:u.phase==="warm"?u.f/LAB.WARM*0.7:0.7+u.f/LAB.SPAN*0.3;
+
+function labNew(){
+  lab.goal=GOALS[(Math.random()*GOALS.length)|0];
+  lab.gen=1;lab.best=null;lab.bestVal=null;lab.done=false;
+  lab.parent=new Float32Array(KSPEC*KSPEC);
+  const r=mulberry32((Math.random()*4294967296)>>>0);
+  for(let i=0;i<lab.parent.length;i++)lab.parent[i]=r()*2-1;
+  $("labMsg").className="";$("labMsg").textContent="";
+  $("lGens").textContent=LAB.GENS;
+  $("gT").textContent=lab.goal.t;
+  $("gD").textContent=lab.goal.d+" Slechts "+lab.goal.p+" van alle seeds haalt dit vanzelf.";
+  labSpawn();
+}
+
+function labSpawn(){
+  const amt=+$("lRad").value;
+  lab.kids=[];
+  for(let i=0;i<LAB.KIDS;i++){
+    const s=new Sim();
+    s.mat.set(lab.parent);
+    // Kind 0 is de ouder zelf: zo kan het beste resultaat nooit achteruit gaan.
+    // De rest muteert schaars — gemiddeld een handvol van de 36 genen. Alle genen
+    // tegelijk verschuiven is in 36 dimensies vrijwel altijd een stap achteruit.
+    if(i>0)for(let j=0;j<s.mat.length;j++){
+      if(Math.random()>MUT_RATE)continue;
+      const v=s.mat[j]+(Math.random()*2-1)*amt;
+      s.mat[j]=v<-1?-1:v>1?1:v;
+    }
+    s.custom=true;
+    s.populate();                                // startopstelling volgt uit het genoom
+    lab.kids.push(labUnit(s));
+  }
+  buildKidCards();
+  labPaint();
+}
+
+function buildKidCards(){
+  const box=$("kids");box.innerHTML="";
+  lab.kids.forEach((u,i)=>{
+    const d=document.createElement("div");
+    d.className="kid wait";
+    d.innerHTML='<div class="tag2">'+(i?"nakomeling "+i:"ouder")+'</div>'+
+      '<canvas width="360" height="248"></canvas><div class="pb"><s></s></div>'+
+      '<div class="sc"><span class="ar">meten…</span><b>–</b></div>';
+    d.onclick=()=>labChoose(i);
+    box.appendChild(d);
+    u.el={card:d,cv:d.querySelector("canvas"),bar:d.querySelector(".pb s"),
+          val:d.querySelector("b"),arch:d.querySelector(".ar")};
+    u.el.ctx=u.el.cv.getContext("2d",{alpha:false});
+  });
+}
+
+function labPaint(){
+  $("lGen").textContent=lab.gen;
+  $("lBest").textContent=lab.best==null?"–":(lab.best*100).toFixed(0)+"%";
+  $("gBar").firstElementChild.style.width=((lab.best||0)*100).toFixed(0)+"%";
+  $("gN").textContent=lab.goal.mk+" · richtwaarde "+lab.goal.fmt(lab.goal.tgt)+
+    (lab.bestVal==null?"":" · beste tot nu "+lab.goal.fmt(lab.bestVal));
+}
+
+function labTick(){
+  // Warmdraaien is goedkoop en mag dubbel zo snel; tijdens het meetvenster kost
+  // elke momentopname een clusteranalyse, dus daar één stap per beeld.
+  const busy=lab.kids.filter(k=>k.phase!=="done");
+  if(busy.length)for(const k of busy)labAdvance(k,k.phase==="warm"?2:1);
+  else if(!lab.done)for(const k of lab.kids)k.s.step();    // klaar: laat ze leven
+
+  let best=null,bi=-1,winner=-1;
+  lab.kids.forEach((u,i)=>{
+    if(u.m&&u.el.card.classList.contains("wait")){
+      u.el.card.classList.remove("wait");
+      u.el.val.textContent=lab.goal.fmt(u.val);
+      u.el.arch.textContent=u.arch;
+      u.el.arch.style.color=ARCH[u.arch].c;
+      if(lab.goal.ok(u.m)){u.el.card.classList.add("hit");winner=i;}
+    }
+    if(u.fit!=null&&(best==null||u.fit>best)){best=u.fit;bi=i;}
+  });
+  if(best!=null){
+    lab.kids.forEach((u,i)=>u.el.card.classList.toggle("best",i===bi));
+    if(lab.best==null||best>lab.best){lab.best=best;lab.bestVal=lab.kids[bi].val;labPaint();}
+  }
+  if(winner>=0&&!lab.done)labWin(winner);
+
+  lab.frame++;
+  lab.kids.forEach((u,i)=>{
+    u.el.bar.style.width=(labProg(u)*100).toFixed(0)+"%";
+    if((lab.frame+i)%3===0)drawSim(u.s,u.el.ctx,u.el.cv.width,u.el.cv.height,{radPx:1.5*dpr,fade:0.24});
+  });
+}
+
+function labWin(i){
+  lab.done=true;
+  lab.parent=new Float32Array(lab.kids[i].s.mat);
+  contractsDone++;store.set("vivarium.ctr",contractsDone);refreshRank();
+  $("labMsg").className="win";
+  $("labMsg").innerHTML="Doel bereikt in generatie "+lab.gen+": <b>"+lab.kids[i].arch+
+    "</b> met "+lab.goal.fmt(lab.kids[i].val)+". Dat genoom staat nu als ouder klaar &mdash; "+
+    "neem het mee naar de safari om het te classificeren en te vangen.";
+}
+
+function labChoose(i){
+  const u=lab.kids[i];
+  if(!u||u.phase!=="done"||lab.done)return;
+  lab.parent=new Float32Array(u.s.mat);
+  if(lab.gen>=LAB.GENS){
+    lab.done=true;
+    $("labMsg").className="lose";
+    $("labMsg").innerHTML="Generaties op. Beste waarde: "+lab.goal.fmt(lab.bestVal)+
+      " tegen een drempel van "+lab.goal.fmt(lab.goal.tgt)+
+      ". Je kunt de laatste ouder alsnog meenemen naar de safari.";
+    return;
+  }
+  lab.gen++;
+  labSpawn();
+}
+
+function labOpen(){
+  if(!lab.goal)labNew();
+}
+
+/* ============================================================
+   7. UI-BEDRADING
+   ============================================================ */
+let toastT;
+function toast(html){
+  const t=$("toast");t.innerHTML=html;t.classList.add("show");
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2600);
+}
+function showTab(which){
+  $("dex").classList.toggle("show",which==="dex");
+  $("dexBar").classList.toggle("show",which==="dex");
+  $("lab").classList.toggle("show",which==="lab");
+  $("tDex").classList.toggle("on",which==="dex");
+  $("tLab").classList.toggle("on",which==="lab");
+  $("tSaf").classList.toggle("on",which==="saf");
+  lab.on=which==="lab";
+  if(which==="dex")renderDex();
+  if(lab.on)labOpen();
+}
+$("tSaf").onclick=()=>showTab("saf");
+$("tDex").onclick=()=>showTab("dex");
+$("tLab").onclick=()=>showTab("lab");
+$("dexClose").onclick=()=>showTab("saf");
+$("labClose").onclick=()=>showTab("saf");
+$("lNew").onclick=()=>labNew();
+$("lRad").oninput=function(){$("lRadV").textContent=(+this.value).toFixed(2);};
+$("lTake").onclick=()=>{
+  if(!lab.parent){toast("nog geen ouder gekweekt");return;}
+  sim.mat.set(lab.parent);sim.custom=true;
+  rescan(null,true);
+  showTab("saf");
+  toast("gekweekt genoom geladen in de safari");
+};
+$("bHelp").onclick=()=>$("help").classList.add("show");
+$("helpClose").onclick=()=>$("help").classList.remove("show");
+$("help").onclick=e=>{if(e.target===$("help"))$("help").classList.remove("show");};
+$("bScan").onclick=()=>rescan((Math.random()*4294967296)>>>0);
+$("bMut").onclick=()=>{sim.mutate(0.22);rescan(null,true);toast("genoom gemuteerd");};
+$("bCatch").onclick=capture;
+$("bLoad").onclick=()=>{
+  const v=parseInt($("seedIn").value.trim(),36);
+  if(!isNaN(v))rescan(v>>>0);else toast("ongeldige code");
+};
+$("seedIn").addEventListener("keydown",e=>{if(e.key==="Enter")$("bLoad").click();});
+$("bWipe").onclick=()=>{
+  if(!dex.length)return;
+  if(confirm("Alle "+dex.length+" vangsten wissen? Dit kan niet ongedaan worden gemaakt."))
+    {dex=[];saveDex();renderDex();}
+};
+$("bExport").onclick=()=>{
+  const txt=dex.map(e=>e.id+"  "+e.name+"  ["+e.arch+"]").join("\n");
+  navigator.clipboard?.writeText(txt).then(
+    ()=>toast("bestiarium naar klembord gekopieerd"),
+    ()=>toast("kopiëren niet toegestaan"));
+};
+addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT")return;
+  const c=e.key.toLowerCase();
+  if(c==="r")$("bScan").click();
+  else if(c==="m")$("bMut").click();
+  else if(c==="c"&&!$("bCatch").disabled)capture();
+  else if(c==="b")showTab($("dex").classList.contains("show")?"saf":"dex");
+  else if(c==="l")showTab(lab.on?"saf":"lab");
+  else if(c==="i")$("help").classList.toggle("show");
+  else if(c==="escape"){
+    if($("help").classList.contains("show"))$("help").classList.remove("show");
+    else showTab("saf");
+  }
+});
+
+/* ============================================================
+   8. HOOFDLUS
+   ============================================================ */
+const hud=$("hud");let last=performance.now(),fps=60;
+function frame(t){
+  requestAnimationFrame(frame);
+  const ft=t-last;last=t;if(ft>0)fps+=(1000/ft-fps)*0.08;
+  if(lab.on){
+    labTick();                                  // de safaribak staat toch achter het lab
+  }else{
+    scanTick();
+    draw();
+  }
+  hud.textContent=(fps|0)+" fps · "+sim.n+" deeltjes · "+sim.k+" soorten";
+}
+
+/* ---- start ---- */
+layout();
+buildColors(KSPEC);
+rescan((Math.random()*4294967296)>>>0);
+newContract();
+refreshRank();
+paintMetrics(null);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,1149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Navis · particle life voyage</title>
+<style>
+  :root{--g:#39e0c8;--bg:#05060a;--tx:#dcefea;--mut:#a5bbb5;--line:rgba(90,230,210,.22);
+    --panel:rgba(9,13,21,.8);--focus:#ffd24a}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);
+    font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
+  #c,#ov{position:fixed;inset:0;display:block}
+  #c{touch-action:none}
+  #ov{pointer-events:none}
+  #c.can-grab{cursor:grab}#c.grabbing{cursor:grabbing}#c.panning{cursor:move}#c.stir{cursor:crosshair}
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(125% 125% at 50% 45%,transparent 52%,#000 100%)}
+  .glass{background:var(--panel);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+    border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 44px rgba(0,0,0,.55)}
+  #ui{position:fixed;top:12px;left:12px;width:272px;max-height:calc(100% - 24px);overflow:auto;
+    padding:9px 12px 12px;z-index:4;transition:transform .25s}
+  #ui.hide{transform:translateX(-300px)}
+  #ui::-webkit-scrollbar{width:6px}#ui::-webkit-scrollbar-thumb{background:#1f2c46;border-radius:3px}
+  h1{font-size:13px;letter-spacing:2px;color:var(--g);font-weight:700}
+  .sub{font-size:10.5px;color:var(--mut);margin:3px 0 5px;line-height:1.45}
+  .sub b{color:var(--tx)}
+  .lnk{background:none;border:0;padding:0;color:var(--g);font-size:10.5px;cursor:pointer}
+  .lnk:hover{background:none;text-decoration:underline}
+  .row{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 2px;font-size:10.5px;color:#c4d6d1}
+  .row b{color:#fff;font-weight:600;font-size:10.5px}
+  input[type=range]{width:100%;height:4px;-webkit-appearance:none;appearance:none;
+    background:#1d2740;border-radius:3px;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+    background:var(--g);cursor:pointer;box-shadow:0 0 9px var(--g)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;
+    background:var(--g);cursor:pointer;box-shadow:0 0 9px var(--g)}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px}
+  button{font-family:inherit;font-size:10.5px;color:#e6fbf6;background:#141d30;border:1px solid var(--line);
+    border-radius:7px;padding:6px 4px;cursor:pointer;transition:background .15s,border-color .15s}
+  button:hover{background:#1c2942;border-color:var(--g)}
+  button:active{transform:translateY(1px)}
+  .pri{background:linear-gradient(180deg,#1d9a89,#13675c);border-color:#2fd;color:#f2fffc;font-weight:600}
+  .on{background:#1b8f80;border-color:#2fd;color:#f2fffc}
+  .pre{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .pre button{flex:1 1 30%;padding:5px 4px}
+  .mini{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:5px}
+  .mini button{padding:6px 3px}
+  button:focus-visible,input:focus-visible,a:focus-visible,#mx:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .seed{display:flex;gap:5px;margin-top:7px;align-items:center;font-size:10.5px;color:var(--mut)}
+  .seed input{flex:1;min-width:0;background:#0c1320;border:1px solid var(--line);color:#c9fff4;
+    border-radius:6px;padding:5px 6px;font-family:inherit;font-size:10.5px}
+  .seed button{padding:5px 8px}
+  .lbl{font-size:9.5px;color:var(--mut);margin-top:9px;text-transform:uppercase;letter-spacing:1.5px;line-height:1.6}
+  #mx{display:grid;gap:2px;margin:6px auto 2px;max-width:210px;touch-action:none;user-select:none;border-radius:3px}
+  #mx div{aspect-ratio:1;border-radius:2px;cursor:ns-resize}
+  #mx:focus-visible div.cur{outline:2px solid var(--focus);outline-offset:-1px}
+  #tog{position:fixed;top:12px;left:12px;z-index:5;width:38px;height:38px;border-radius:11px;font-size:17px;
+    line-height:1;display:none;background:rgba(9,13,21,.85)}
+  #home{position:fixed;top:12px;right:12px;z-index:6;font-size:11px;font-weight:600;letter-spacing:1.5px;
+    text-decoration:none;color:var(--g);background:rgba(8,9,14,.7);border:1px solid rgba(255,255,255,.16);
+    border-radius:9px;padding:6px 10px}
+  #home:hover{background:rgba(8,9,14,.92)}
+  #hud{position:fixed;right:13px;bottom:11px;font-size:11px;color:var(--mut);text-align:right;
+    pointer-events:none;line-height:1.55;text-shadow:0 0 6px #000,0 0 2px #000;z-index:3}
+  #tl{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);width:min(640px,calc(100% - 24px));
+    display:flex;align-items:center;gap:10px;padding:7px 11px;z-index:4}
+  #tl button{min-width:38px;padding:6px 8px;font-size:12px;line-height:1}
+  #tTime{min-width:78px;text-align:right;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--tx)}
+  #tSl{flex:1;min-width:60px;height:6px;outline-offset:6px}
+  #tSl::-webkit-slider-thumb{width:15px;height:15px;cursor:grab}
+  #tSl::-moz-range-thumb{width:15px;height:15px}
+  #hint,#msg{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);width:max-content;
+    max-width:calc(100% - 32px);text-align:center;font-size:12.5px;line-height:1.5;pointer-events:none;
+    transition:opacity 1s;text-shadow:0 0 14px #000,0 0 4px #000}
+  #hint{color:var(--g)}
+  #msg{color:#f2fffc;opacity:0}
+  #about{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;
+    padding:18px;background:rgba(2,4,8,.74);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #about.show{display:flex}
+  #about .card{max-width:470px;max-height:88%;overflow:auto;background:rgba(11,16,26,.97);
+    border:1px solid var(--line);border-radius:16px;padding:22px 24px;font-size:13px;line-height:1.55;
+    box-shadow:0 22px 72px rgba(0,0,0,.7)}
+  #about h2{color:var(--g);letter-spacing:3px;font-size:18px;margin-bottom:10px}
+  #about h3{color:#fff;font-size:13px;margin:15px 0 5px}
+  #about p{color:#c9dbd6;margin:7px 0}
+  #about ul{margin:6px 0 6px 18px;color:#c9dbd6}#about li{margin:4px 0}
+  #about code{background:#0b1422;border:1px solid #1c2942;border-radius:5px;padding:1px 5px;color:#8ff}
+  #about .cr{color:var(--mut);font-size:11px;margin-top:16px}
+  #about button{margin-top:14px;width:100%;padding:10px;font-size:12px}
+  @media (max-width:1180px){#hud{bottom:64px}#hint,#msg{bottom:112px}}
+  @media (max-width:560px){
+    #ui{top:54px;width:calc(100% - 24px);max-height:calc(100% - 128px)}
+    #ui.hide{transform:translateX(calc(-100% - 24px))}
+    #hud{display:none}#hint,#msg{bottom:72px}#tTime{min-width:62px}
+  }
+  @media (hover:none) and (pointer:coarse){.kl{display:none}}
+  @media (prefers-reduced-motion:reduce){#ui,#hint,#msg{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="c" role="img" aria-label="Particle life without edges: coloured particles self-organise into forms. Use the panel or the keyboard to change the rules, follow and tow forms, and rewind time."></canvas>
+<canvas id="ov" aria-hidden="true"></canvas>
+<div id="vig"></div>
+<a id="home" href="index.html" title="back to the collection">&lsaquo; Primordia</a>
+<button id="tog" aria-label="Show panel" title="show panel">&#9776;</button>
+<div id="ui" class="glass">
+  <h1>NAVIS</h1>
+  <div class="sub">Simple rules &rarr; emergent life, in a world without edges. Hit <b>Randomize</b> for new
+    rules. <button class="lnk" id="bHide">[hide]</button> <button class="lnk" id="bAbout">[about]</button></div>
+  <div id="ctrls"></div>
+  <div class="btns">
+    <button class="pri" id="bRand" title="Rolls a brand-new random matrix from a fresh seed: new rules for the same particles (key R).">&#9889; Randomize</button>
+    <button id="bReset" title="Scatters the particles afresh around you, keeping the rules (key N).">&#8635; Respawn</button>
+    <button id="bPause" title="Pause, or play on from the moment on screen (space).">&#10073;&#10073; Pause</button>
+    <button id="bMouse" title="Drag empty space to look around, drag a form to tow it. Click to switch to Push or Pull.">&#128065; Look</button>
+    <button id="bAud" style="grid-column:1/3" aria-pressed="false" title="Generative ambient music conducted by the swarm (key A).">&#128263; Audio</button>
+  </div>
+  <div class="pre">
+    <button data-p="cells" title="Each species strongly attracts its own kind and repels all others, so colours gather into tight, membrane-like blobs that keep their distance.">Cells</button>
+    <button data-p="chase" title="Every colour is pulled toward the next colour in the cycle but not the reverse; that one-way attraction makes them hunt each other in moving trains.">Chase</button>
+    <button data-p="snakes" title="Self-attraction, plus a pull toward the next colour and a push from the previous one, links particles into wriggling chains.">Snakes</button>
+    <button data-p="gas" title="Almost everything repels everything else, so particles spread out and drift like a diffuse, glowing gas.">Gas</button>
+    <button data-p="random" title="Discards the rules and rolls a brand-new random matrix from a fresh seed (same as Randomize).">Wild</button>
+  </div>
+  <div class="mini">
+    <button id="bMut" title="Nudges every rule by a small random amount, keeping the creature's character but shifting its behaviour (key M).">&#9883; Mutate</button>
+    <button id="bEvo" aria-pressed="false" title="Keeps mutating a little every few seconds, so the ecosystem slowly drifts on its own. Part of the timeline, so it replays exactly (key E).">&#8734; Evolve</button>
+    <button id="bPal" title="Cycles the colour scheme; changes only the look (key P).">&#127912; Palette</button>
+  </div>
+  <div class="btns" style="margin-top:6px">
+    <button id="bRng" title="Rolls fresh random values for all eight sliders at once.">&#127922; Settings</button>
+    <button id="bDef" title="Resets all eight sliders to their starting values.">&#8634; Defaults</button>
+    <button id="bSnap" style="grid-column:1/3" title="Saves the current frame as a PNG, just the artwork (key S).">&#128247; Save PNG</button>
+  </div>
+  <div class="seed"><label for="seedIn">seed</label><input id="seedIn" spellcheck="false" autocomplete="off"
+    title="Copy a seed to keep the rules, or paste one (Primordium seeds work too) and press Load"><button id="bSeed">Load</button></div>
+  <div class="lbl kl">keys &middot; space r m e p a n s h i</div>
+  <div class="lbl">voyage</div>
+  <div class="btns" style="margin-top:5px">
+    <button id="bFol" title="Follow the largest form near the centre of the view, or let go of the one you follow (key F).">&#9678; Follow</button>
+    <button id="bZoom" title="Back to the default zoom (key 0).">&#8982; Zoom 1:1</button>
+  </div>
+  <div class="lbl kl">keys &middot; f follow &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
+  <div class="lbl">interaction matrix &middot; drag cells &updownarrow;</div>
+  <div id="mx" tabindex="0" role="group" aria-label="Interaction matrix. Arrow keys choose a cell, plus and minus change it."></div>
+</div>
+<div id="tl" class="glass" role="group" aria-label="Time">
+  <button id="bPlay" aria-label="Pause">&#10073;&#10073;</button>
+  <input id="tSl" type="range" min="0" max="0" step="0.05" value="0"
+    aria-label="Timeline: the last 60 seconds. Drag back to look at the past.">
+  <span id="tTime">LIVE</span>
+  <button id="bLive" aria-label="Back to live" title="Back to live (L)">&#9197;</button>
+</div>
+<div id="hud"></div>
+<div id="hint">drag empty space to look around &middot; click a form to follow it &middot; drag it to tow &middot; scroll to zoom &middot; rewind on the timeline</div>
+<div id="msg" role="status" aria-live="polite"></div>
+<div id="about" role="dialog" aria-modal="true" aria-labelledby="abT"><div class="card">
+  <h2 id="abT">NAVIS</h2>
+  <p>Primordium in a world without edges. Hundreds of particles, each one of a few <i>species</i>, obey one
+  tiny rule: <b>how strongly am I pulled toward &mdash; or pushed away from &mdash; each other species?</b>
+  Those forces live in the colour grid at the bottom of the panel. The camera travels, and the world comes along.</p>
+  <h3>The force law</h3>
+  <p>For two particles at distance r (scaled to the interaction radius, 0&rarr;1):</p>
+  <ul>
+    <li><b>r &lt; core</b> &mdash; always repel, so particles never collapse together.</li>
+    <li><b>core &lt; r &lt; 1</b> &mdash; attract / repel by the grid value a:
+      <code>f = a&middot;(1 &minus; |2r&minus;1&minus;core| / (1&minus;core))</code></li>
+    <li><b>r &gt; 1</b> &mdash; no force at all.</li>
+  </ul>
+  <h3>The travelling window</h3>
+  <p>The world is a torus a little larger than your widest view, always centred on the camera. Whatever
+  drifts past its far edge comes back on the opposite side, out of sight, as <b>fresh primordial soup</b>:
+  a new species, at rest. The number of particles never grows, yet there is always new soup ahead of you.</p>
+  <h3>Forms</h3>
+  <p><b>Click</b> a form and the camera follows it, re-identifying it four times a second as particles join
+  and leave. In <b>Look</b> mode, <b>drag</b> a form to tow it: every particle in it receives the very same
+  push, so its shape and its own motion stay intact. In <b>Push</b> and <b>Pull</b> mode, dragging stirs the
+  swarm as in Primordium; right-drag still looks around.</p>
+  <h3>Time</h3>
+  <p>The last 60 seconds are kept, rules and all: rewind past a Mutate or a slider change and the grid and
+  sliders go back with it. Press play and history continues from that moment. Leave it alone and exactly the
+  same future unfolds again &mdash; touch anything and it takes another course. Changing the number of
+  particles or species builds a new world and starts the timeline over.</p>
+  <h3>Sound</h3>
+  <p>Toggle <b>Audio</b> and the swarm conducts a generative ambient piece: a breathing drone under a soft
+  pentatonic melody. Frantic motion makes the notes busier and brighter, settling makes them sparse and calm.</p>
+  <h3>Keyboard</h3>
+  <p><code>space</code> pause &middot; <code>r</code> randomize &middot; <code>m</code> mutate &middot;
+  <code>e</code> evolve &middot; <code>p</code> palette &middot; <code>a</code> sound &middot;
+  <code>n</code> respawn &middot; <code>s</code> save PNG &middot; <code>h</code> hide panel &middot;
+  <code>i</code> this panel &middot; <code>f</code> follow &middot; <code>esc</code> let go &middot;
+  <code>,</code> <code>.</code> step in time &middot; <code>l</code> live &middot; arrows look around &middot;
+  <code>shift</code>+arrows tow &middot; <code>+</code> <code>&minus;</code> <code>0</code> zoom</p>
+  <p class="cr">A single self-contained HTML file &middot; no libraries, no network, no assets. Built with Claude.</p>
+  <button id="aClose">close</button>
+</div></div>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const cv=$("c"),ctx=cv.getContext("2d",{alpha:false});
+const ov=$("ov"),octx=ov.getContext("2d");
+const buf=document.createElement("canvas"),bctx=buf.getContext("2d",{alpha:false});
+let W=0,H=0;
+
+// ---- settings: Primordium's eight sliders. The rule ones travel through the timeline. ----
+const COARSE=matchMedia("(pointer:coarse)").matches;   // touch screens: phones get a lighter world
+const NMAX=COARSE?1800:3600;
+const P={n:2400,k:6,rN:0.105,force:11,fhl:0.04,beta:0.3,dt:0.02,fade:0.16};
+const DEF=Object.assign({},P);       // n is set once the first world is sized
+const R0=80;                         // rMax in world units at the default radius
+const DENS=4.4/(R0*R0);              // Primordium's default density, ~4.4 particles per rMax²
+const ZREL=0.105;                    // default zoom: rMax spans 10.5% of the short screen side
+const ZOUT=0.62,ZIN=4;               // zoom range, relative to that default
+const CAP=800,MINBODY=8;
+const SPS=60,SNAP=6,HIST=600;        // 60 steps/s, a snapshot every 0.1 s, 60 s of history
+const TAU=Math.PI*2,BG="#05060a";
+const wd=(d,L)=>d>L*.5?d-L:d<-L*.5?d+L:d;   // minimum image, for distances inside the box
+const wr=(d,L)=>d-L*Math.round(d/L);        // the same for any distance
+let RM=R0,LINK2=(0.5*R0)**2;                // interaction radius now, and the link distance of a form
+
+// ---- world state: everything a snapshot must hold to replay exactly ----
+const S={n:0,Lx:1,Ly:1,x:null,y:null,vx:null,vy:null,typ:null,rng:1,camX:0,camY:0,
+  fol:new Int32Array(CAP),folN:0,step:0,evo:false,seed:0,custom:false,rv:0,
+  tX:0,tY:0,cvx:0,cvy:0,fvx:0,fvy:0};   // camera: tight tracker, own velocity, tracker velocity smoothed
+// The camera glides after a followed form (tuned on recorded flights of the fastest forms): a calm
+// zone in the middle, the form's velocity averaged over 0.4 s, speed changes eased, ever firmer as the
+// form nears CLIM, which it may never pass. All per step (60/s), all part of the timeline.
+const CH=1/SPS,CF=1-Math.exp(-CH/0.4),CLIM=264,CK=0.45,CK2=0.18,CS0=0.3,CTA=0.12,CAD=0.85;
+// drawing in between steps: the state before the last step, and how far along the next one we are
+let prevX,prevY,pcx=0,pcy=0,prevOK=false,alpha=1,lx,ly;
+// what you see: the world's camera, plus (view only) an offset that keeps a followed form on screen
+// when you zoom in beyond the camera's own margin
+const VW={x:0,y:0,ox:0,oy:0};
+const mat=new Float32Array(64);      // up to 8x8, stride P.k
+let RVC=0;function rulesChanged(){S.rv=++RVC;}   // every rule state gets its own id, for the panel
+let zoom=1,zMin=0.5,zMax=4;
+let cols=3,rows=3,cw=1,ch=1;
+const gPhys={},gPick={};
+let stamp,queue,mark,gen=0,bfsTrunc=false,ix,iy;
+let mode="live",view=0,viewOX=0,viewOY=0,lost=false;
+const tow={on:false,list:new Int32Array(CAP),n:0,sx:0,sy:0,ox:0,oy:0};
+const stir={on:false,sx:0,sy:0,mode:1};
+const keyTow={x:0,y:0};
+let hover=null,drag=null;
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+// the same generator, but its state lives in S so a snapshot can carry it
+function rnd(){const a=S.rng=(S.rng+0x6D2B79F5)|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}
+const rand32=()=>(Math.random()*4294967296)>>>0;
+
+const pals=[
+  (i,k)=>"hsl("+(i/k*360|0)+",95%,60%)",                  // spectrum
+  (i,k)=>"hsl("+(i/k*72|0)+",100%,"+(50+i/k*16|0)+"%)",   // fire
+  (i,k)=>"hsl("+(170+i/k*130|0)+",90%,62%)",              // ice
+  (i,k)=>"hsl("+(i/k*330|0)+",82%,73%)",                  // candy
+  (i,k)=>"hsl("+(155+i/k*45|0)+",22%,"+(38+i/k*48|0)+"%)" // mono
+];
+let pal=0,cols_=[];
+function buildColors(){cols_=[];for(let i=0;i<P.k;i++)cols_.push(pals[pal](i,P.k));}
+
+// ---- the box, the zoom and the spatial hash ----
+const z0=()=>ZREL*Math.min(W,H)/R0;
+function boxSize(){const zw=z0()*ZOUT;return [W/zw+4*RM,H/zw+4*RM];}   // widest view + 2 rMax each side
+function zoomBounds(){
+  zMin=Math.max(W/Math.max(1,S.Lx-4*RM),H/Math.max(1,S.Ly-4*RM));
+  zMax=Math.max(zMin,z0()*ZIN);
+  zoom=Math.min(zMax,Math.max(zMin,zoom));
+}
+function gridDims(){
+  cols=Math.max(3,Math.floor(S.Lx/RM));rows=Math.max(3,Math.floor(S.Ly/RM));cw=S.Lx/cols;ch=S.Ly/rows;
+  for(const g of [gPhys,gPick])if(!g.head||g.head.length<cols*rows)g.head=new Int32Array(cols*rows);
+}
+function setRM(){RM=R0*P.rN/0.105;LINK2=(0.5*RM)**2;if(S.n){gridDims();zoomBounds();}}
+function cellOf(v,L,c,w){const m=v-L*Math.floor(v/L);const i=(m/w)|0;return i>=c?c-1:i<0?0:i;}
+function fillGrid(g,X,Y,n){
+  const h=g.head,nx=g.nxt,ce=g.cel,Lx=S.Lx,Ly=S.Ly;h.fill(-1);
+  for(let i=0;i<n;i++){const c=cellOf(Y[i],Ly,rows,ch)*cols+cellOf(X[i],Lx,cols,cw);ce[i]=c;nx[i]=h[c];h[c]=i;}
+}
+
+// ---- worlds ----
+// a whole new world (box from this screen, arrays for P.n particles): the timeline starts over
+function resetWorld(){
+  if(!W||!H)return;
+  [S.Lx,S.Ly]=boxSize();
+  const n=S.n=P.n;
+  S.x=new Float32Array(n);S.y=new Float32Array(n);S.vx=new Float32Array(n);S.vy=new Float32Array(n);
+  S.typ=new Uint8Array(n);
+  for(const g of [gPhys,gPick]){g.head=null;g.nxt=new Int32Array(n);g.cel=new Int32Array(n);}
+  stamp=new Int32Array(n);queue=new Int32Array(n);mark=new Uint8Array(n);gen=0;
+  ix=new Float32Array(n);iy=new Float32Array(n);lx=new Float32Array(n);ly=new Float32Array(n);
+  prevX=new Float32Array(n);prevY=new Float32Array(n);prevOK=false;
+  S.tX=S.camX;S.tY=S.camY;S.cvx=S.cvy=S.fvx=S.fvy=0;VW.ox=VW.oy=0;
+  gridDims();zoomBounds();spawnPositions();
+  S.step=0;mode="live";view=0;viewOX=viewOY=0;tow.on=false;stir.on=false;hover=null;drag=null;lost=false;
+  histReset();pushSnap();clearTrails();uiRv=-1;
+}
+function spawnPositions(){
+  S.rng=rand32()|0;S.folN=0;tow.on=false;prevOK=false;
+  for(let i=0;i<S.n;i++){S.x[i]=S.camX+(rnd()-.5)*S.Lx;S.y[i]=S.camY+(rnd()-.5)*S.Ly;
+    S.vx[i]=0;S.vy[i]=0;S.typ[i]=(rnd()*P.k)|0;}
+}
+// reproducible rules: the matrix is derived from a 32-bit seed exactly as in Primordium
+function genSeed(s){
+  S.seed=s>>>0;S.custom=false;const r=mulberry32(S.seed||1),k=P.k;
+  for(let i=0;i<k;i++)for(let j=0;j<k;j++)mat[i*k+j]=r()*2-1;
+  rulesChanged();
+}
+function mutate(amt,rf){
+  for(let i=0,L=P.k*P.k;i<L;i++){const v=mat[i]+(rf()*2-1)*amt;mat[i]=v<-1?-1:v>1?1:v;}
+  S.custom=true;rulesChanged();
+}
+function preset(p){
+  if(p==="random"){genSeed(rand32());return;}
+  const k=P.k;
+  for(let i=0;i<k;i++)for(let j=0;j<k;j++){
+    let v=0;
+    if(p==="cells")  v=i===j?1:-0.35;
+    else if(p==="gas")v=i===j?-0.1:-(0.3+Math.random()*0.6);
+    else if(p==="chase")v=j===(i+1)%k?1:i===j?-0.15:-0.25;
+    else if(p==="snakes")v=i===j?0.55:j===(i+1)%k?0.45:i===(j+1)%k?-0.45:-0.1;
+    mat[i*k+j]=v;
+  }
+  S.custom=true;rulesChanged();
+}
+
+// ---- simulation: Primordium's step on a torus centred on the camera ----
+function forces(){
+  const n=S.n,x=S.x,y=S.y,vx=S.vx,vy=S.vy,typ=S.typ,Lx=S.Lx,Ly=S.Ly,hx=Lx*.5,hy=Ly*.5;
+  const k=P.k,beta=P.beta,ib=1/(1-beta),rM=RM,r2=rM*rM,fpf=rM*P.force,dt=P.dt,ff=Math.pow(0.5,dt/P.fhl);
+  fillGrid(gPhys,x,y,n);
+  const head=gPhys.head,nxt=gPhys.nxt,cel=gPhys.cel;
+  for(let i=0;i<n;i++){
+    let fx=0,fy=0;const xi=x[i],yi=y[i],ti=typ[i]*k,c=cel[i],cx=c%cols,cy=(c-cx)/cols;
+    for(let oy=-1;oy<=1;oy++){
+      const row=((cy+oy+rows)%rows)*cols;
+      for(let ox=-1;ox<=1;ox++){
+        let j=head[row+(cx+ox+cols)%cols];
+        while(j!==-1){
+          if(j!==i){
+            let dx=x[j]-xi,dy=y[j]-yi;
+            if(dx>hx)dx-=Lx;else if(dx<-hx)dx+=Lx;
+            if(dy>hy)dy-=Ly;else if(dy<-hy)dy+=Ly;
+            const d2=dx*dx+dy*dy;
+            if(d2>0&&d2<r2){
+              const d=Math.sqrt(d2),rr=d/rM;
+              const f=rr<beta?rr/beta-1:mat[ti+typ[j]]*(1-Math.abs(2*rr-1-beta)*ib);
+              const id=f/d;fx+=dx*id;fy+=dy*id;
+            }
+          }
+          j=nxt[j];
+        }
+      }
+    }
+    vx[i]=vx[i]*ff+fx*fpf*dt;vy[i]=vy[i]*ff+fy*fpf*dt;
+  }
+}
+// Primordium's push / pull, scaled with the interaction radius
+function stirForce(){
+  const r=2*RM,r2=r*r,s=9*RM/R0*stir.mode,Lx=S.Lx,Ly=S.Ly;
+  const wx=VW.x+(stir.sx-W/2)/zoom,wy=VW.y+(stir.sy-H/2)/zoom;
+  for(let i=0;i<S.n;i++){
+    const dx=wd(S.x[i]-wx,Lx),dy=wd(S.y[i]-wy,Ly),d2=dx*dx+dy*dy;
+    if(d2<r2&&d2>0){const md=Math.sqrt(d2),pp=(1-md/r)*s/md;S.vx[i]+=dx*pp;S.vy[i]+=dy*pp;}
+  }
+}
+
+// centroid of a member list (minimum image around its first member) and its mean velocity
+const B={x:0,y:0},MV={x:0,y:0};
+function body(list,cnt,X,Y){
+  const Lx=S.Lx,Ly=S.Ly,rx=X[list[0]],ry=Y[list[0]];let sx=0,sy=0;
+  for(let q=0;q<cnt;q++){const i=list[q];sx+=wd(X[i]-rx,Lx);sy+=wd(Y[i]-ry,Ly);}
+  B.x=rx+sx/cnt;B.y=ry+sy/cnt;
+}
+function meanV(list,cnt){let a=0,b=0;for(let q=0;q<cnt;q++){const i=list[q];a+=S.vx[i];b+=S.vy[i];}
+  MV.x=a/cnt;MV.y=b/cnt;}
+// one and the same velocity change for every member: the form moves as a whole, its inner motion untouched
+function push(list,cnt,ux,uy,gain){
+  meanV(list,cnt);const ax=(ux-MV.x)*gain,ay=(uy-MV.y)*gain;
+  for(let q=0;q<cnt;q++){const i=list[q];S.vx[i]+=ax;S.vy[i]+=ay;}
+}
+
+function camera(dt){
+  const Lx=S.Lx,Ly=S.Ly;
+  if(!S.folN||tow.on){   // nothing to follow: glide to a stop
+    const k=Math.exp(-CH/0.35);S.cvx*=k;S.cvy*=k;
+    S.camX+=S.cvx*CH;S.camY+=S.cvy*CH;S.tX=S.camX;S.tY=S.camY;S.fvx=S.cvx;S.fvy=S.cvy;
+    return;
+  }
+  // a tight tracker irons out the jumps of a changing membership...
+  body(S.fol,S.folN,S.x,S.y);meanV(S.fol,S.folN);
+  const ptx=S.tX,pty=S.tY;
+  S.tX+=MV.x*dt+wd(B.x-S.tX,Lx)*0.05;S.tY+=MV.y*dt+wd(B.y-S.tY,Ly)*0.05;
+  // ...and the camera glides after that tracker
+  S.fvx+=(wd(S.tX-ptx,Lx)/CH-S.fvx)*CF;S.fvy+=(wd(S.tY-pty,Ly)/CH-S.fvy)*CF;
+  const ex=wd(S.tX-S.camX,Lx),ey=wd(S.tY-S.camY,Ly),d=Math.hypot(ex,ey);
+  const r0=Math.min(RM,0.4*CLIM),s=Math.max(0,Math.min(1,(d-CS0*CLIM)/((1-CS0)*CLIM)));
+  const u=d>r0?((d-r0)/CK+Math.max(0,d-CS0*CLIM)/CK2)/d:0;
+  const ka=1-Math.exp(-CH/(CTA*(1-CAD*s)));
+  S.cvx+=(S.fvx+ex*u-S.cvx)*ka;S.cvy+=(S.fvy+ey*u-S.cvy)*ka;
+  S.camX+=S.cvx*CH;S.camY+=S.cvy*CH;
+  const ex2=wd(S.tX-S.camX,Lx),ey2=wd(S.tY-S.camY,Ly),d2=Math.hypot(ex2,ey2);
+  if(d2>CLIM){const f=(d2-CLIM)/d2;S.camX+=ex2*f;S.camY+=ey2*f;}
+}
+
+function tick(){
+  const dt=P.dt;
+  prevX.set(S.x);prevY.set(S.y);pcx=S.camX;pcy=S.camY;prevOK=true;   // for drawing in between steps
+  forces();
+  if(stir.on)stirForce();
+  if(tow.on){
+    body(tow.list,tow.n,S.x,S.y);
+    const tx=VW.x+(tow.sx-W/2)/zoom+tow.ox,ty=VW.y+(tow.sy-H/2)/zoom+tow.oy;   // the pointer, in what you see
+    let ux=wd(tx-B.x,S.Lx)/(8*dt),uy=wd(ty-B.y,S.Ly)/(8*dt);
+    const sp=Math.hypot(ux,uy),vm=6/dt;if(sp>vm){ux*=vm/sp;uy*=vm/sp;}
+    push(tow.list,tow.n,ux,uy,0.6);
+  }else if((keyTow.x||keyTow.y)&&S.folN){
+    const l=Math.hypot(keyTow.x,keyTow.y),v=3/dt;
+    push(S.fol,S.folN,keyTow.x/l*v,keyTow.y/l*v,0.3);
+  }
+  const n=S.n,x=S.x,y=S.y,vx=S.vx,vy=S.vy;
+  for(let i=0;i<n;i++){x[i]+=vx[i]*dt;y[i]+=vy[i]*dt;}
+  if(S.folN&&!tow.on&&S.step%15===0)refollow();
+  camera(dt);
+  renew();
+  if(S.evo&&S.step>0&&S.step%80===0)mutate(0.07,rnd);   // drawn from the world's own generator: replays exactly
+  S.step++;
+  if(S.step%SNAP===0)pushSnap();
+}
+
+// The world is a torus centred on the camera. Whatever drifts past its far edge comes back on the
+// opposite side as fresh primordial soup (a new species, at rest): always out of sight.
+function renew(){
+  const n=S.n,x=S.x,y=S.y,vx=S.vx,vy=S.vy,typ=S.typ,Lx=S.Lx,Ly=S.Ly,k=P.k;
+  if(Math.abs(S.camX)>1e5||Math.abs(S.camY)>1e5){   // keep coordinates small; a whole-period shift changes nothing
+    const sx=Lx*Math.round(S.camX/Lx),sy=Ly*Math.round(S.camY/Ly);
+    S.camX-=sx;S.camY-=sy;S.tX-=sx;S.tY-=sy;for(let i=0;i<n;i++){x[i]-=sx;y[i]-=sy;}prevOK=false;
+  }
+  const cx=S.camX,cy=S.camY;
+  for(let i=0;i<n;i++){
+    const kx=Math.floor((x[i]-cx)/Lx+.5),ky=Math.floor((y[i]-cy)/Ly+.5);
+    if(kx|ky){x[i]-=kx*Lx;y[i]-=ky*Ly;typ[i]=(rnd()*k)|0;vx[i]=0;vy[i]=0;}
+  }
+}
+
+// ---- forms: connected particles (closer than half an interaction radius) ----
+function bfsFrom(g,X,Y,start,cap,q0){
+  const Lx=S.Lx,Ly=S.Ly,hx=Lx*.5,hy=Ly*.5,head=g.head,nxt=g.nxt,cel=g.cel;
+  let qh=q0,qt=q0;queue[qt++]=start;stamp[start]=gen;
+  while(qh<qt){
+    const i=queue[qh++],c=cel[i],cx=c%cols,cy=(c-cx)/cols,xi=X[i],yi=Y[i];
+    for(let oy=-1;oy<=1;oy++){
+      const row=((cy+oy+rows)%rows)*cols;
+      for(let ox=-1;ox<=1;ox++){
+        let j=head[row+(cx+ox+cols)%cols];
+        while(j!==-1){
+          if(stamp[j]!==gen){
+            let dx=X[j]-xi,dy=Y[j]-yi;
+            if(dx>hx)dx-=Lx;else if(dx<-hx)dx+=Lx;
+            if(dy>hy)dy-=Ly;else if(dy<-hy)dy+=Ly;
+            if(dx*dx+dy*dy<LINK2){stamp[j]=gen;if(qt-q0<cap)queue[qt++]=j;else bfsTrunc=true;}
+          }
+          j=nxt[j];
+        }
+      }
+    }
+  }
+  return qt;
+}
+
+// Particles join and leave a form, so it is re-identified: of all the forms its old members now
+// belong to, keep the one holding most of them. Too few left means it has dissolved.
+const folTmp=new Int32Array(CAP);
+function refollow(){
+  const old=S.fol,on=S.folN;
+  for(let q=0;q<on;q++)mark[old[q]]=1;
+  gen++;let qt=0,bA=0,bB=0,bOv=0,bT=false;
+  for(let q=0;q<on;q++){
+    const s=old[q];if(stamp[s]===gen)continue;
+    bfsTrunc=false;const a=qt;qt=bfsFrom(gPhys,S.x,S.y,s,2*CAP,a);
+    let ov=0;for(let r=a;r<qt;r++)ov+=mark[queue[r]];
+    if(ov>bOv){bOv=ov;bA=a;bB=qt;bT=bfsTrunc;}
+  }
+  if(bOv<Math.max(3,on*0.3)||bB-bA<MINBODY){for(let q=0;q<on;q++)mark[old[q]]=0;S.folN=0;lost=true;return;}
+  if(bT||bB-bA>CAP){
+    // Swallowed by a larger mass: follow the form's own particles inside it. Taking a fresh chunk of
+    // the mass each time would make the target, and with it the camera, jump about.
+    let k=0;for(let r=bA;r<bB;r++){const i=queue[r];if(mark[i])folTmp[k++]=i;}
+    for(let q=0;q<on;q++)mark[old[q]]=0;
+    if(k<MINBODY){S.folN=0;lost=true;return;}
+    S.fol.set(folTmp.subarray(0,k));S.folN=k;
+  }else{for(let q=0;q<on;q++)mark[old[q]]=0;S.fol.set(queue.subarray(bA,bB));S.folN=bB-bA;}
+}
+
+function pickAt(sx,sy){
+  const d=displayState(),n=S.n,Lx=S.Lx,Ly=S.Ly;
+  const wx=d.cx+(sx-W/2)/zoom,wy=d.cy+(sy-H/2)/zoom;
+  fillGrid(gPick,d.X,d.Y,n);
+  const hr=Math.min(cw,Math.max(14/zoom,0.25*RM));let best=-1,bd=hr*hr;
+  const cx=cellOf(wx,Lx,cols,cw),cy=cellOf(wy,Ly,rows,ch),head=gPick.head,nxt=gPick.nxt;
+  for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){
+    let j=head[((cy+oy+rows)%rows)*cols+(cx+ox+cols)%cols];
+    while(j!==-1){const dx=wr(d.X[j]-wx,Lx),dy=wr(d.Y[j]-wy,Ly),dd=dx*dx+dy*dy;
+      if(dd<bd){bd=dd;best=j;}j=nxt[j];}
+  }
+  if(best<0)return null;
+  gen++;bfsTrunc=false;const e=bfsFrom(gPick,d.X,d.Y,best,CAP,0);
+  return e<MINBODY?null:{list:queue.slice(0,e),n:e};
+}
+function largestNearCentre(){
+  const d=displayState(),n=S.n,Lx=S.Lx,Ly=S.Ly,R=0.3*Math.min(W,H)/zoom,RR=R*R;
+  fillGrid(gPick,d.X,d.Y,n);gen++;let qt=0,bA=0,bs=0;
+  for(let i=0;i<n;i++){
+    if(stamp[i]===gen)continue;
+    const dx=wr(d.X[i]-d.cx,Lx),dy=wr(d.Y[i]-d.cy,Ly);if(dx*dx+dy*dy>RR)continue;
+    bfsTrunc=false;const a=qt;qt=bfsFrom(gPick,d.X,d.Y,i,CAP,a);
+    if(qt-a>bs){bs=qt-a;bA=a;}
+  }
+  return bs<MINBODY?null:{list:queue.slice(bA,bA+bs),n:bs};
+}
+
+// ---- history: a ring of exact snapshots, rules included ----
+let hist=[],hStart=0,hCount=0;
+function histReset(){hist=new Array(HIST);hStart=0;hCount=0;}
+const snapAt=i=>hist[(hStart+i)%HIST];
+function pushSnap(){
+  let slot;
+  if(hCount<HIST){slot=(hStart+hCount)%HIST;hCount++;}else{slot=hStart;hStart=(hStart+1)%HIST;}
+  const n=S.n;let s=hist[slot];
+  if(!s||s.n!==n){const f=new Float32Array(4*n);
+    s=hist[slot]={n,f,X:f.subarray(0,n),Y:f.subarray(n,2*n),t:new Uint8Array(n),fol:new Int32Array(CAP),
+      m:new Float32Array(64)};}
+  s.f.set(S.x,0);s.f.set(S.y,n);s.f.set(S.vx,2*n);s.f.set(S.vy,3*n);s.t.set(S.typ);
+  s.fol.set(S.fol.subarray(0,S.folN));s.folN=S.folN;
+  s.rng=S.rng;s.camX=S.camX;s.camY=S.camY;s.step=S.step;
+  s.tX=S.tX;s.tY=S.tY;s.cvx=S.cvx;s.cvy=S.cvy;s.fvx=S.fvx;s.fvy=S.fvy;
+  s.m.set(mat);s.rN=P.rN;s.force=P.force;s.fhl=P.fhl;s.beta=P.beta;s.dt=P.dt;
+  s.evo=S.evo;s.seed=S.seed;s.custom=S.custom;s.rv=S.rv;
+}
+function restore(i){
+  const s=snapAt(i),n=S.n,f=s.f;
+  S.x.set(f.subarray(0,n));S.y.set(f.subarray(n,2*n));S.vx.set(f.subarray(2*n,3*n));S.vy.set(f.subarray(3*n));
+  S.typ.set(s.t);S.fol.set(s.fol.subarray(0,s.folN));S.folN=s.folN;
+  S.rng=s.rng;S.camX=s.camX;S.camY=s.camY;S.step=s.step;
+  S.tX=s.tX;S.tY=s.tY;S.cvx=s.cvx;S.cvy=s.cvy;S.fvx=s.fvx;S.fvy=s.fvy;
+  prevOK=false;
+  mat.set(s.m);P.force=s.force;P.fhl=s.fhl;P.beta=s.beta;P.dt=s.dt;
+  S.evo=s.evo;S.seed=s.seed;S.custom=s.custom;S.rv=s.rv;
+  if(P.rN!==s.rN){P.rN=s.rN;setRM();}
+  hCount=i+1;   // the old future is gone: history continues from here
+}
+// leave the past and continue from the moment on screen
+function commit(keepView){
+  restore(Math.max(0,Math.min(hCount-1,Math.round(view))));
+  if(keepView){S.camX+=viewOX;S.camY+=viewOY;}
+  viewOX=viewOY=0;mode="live";tow.on=false;
+}
+// changing anything while looking at the past continues history from that moment
+function live(){if(mode==="review")commit(true);}
+// pausing is looking at the newest moment of the timeline, so it is exact as well
+function enterReview(){
+  if(mode==="review")return;
+  if(!hCount||snapAt(hCount-1).step!==S.step)pushSnap();
+  mode="review";view=hCount-1;viewOX=viewOY=0;tow.on=false;stir.on=false;drag=null;
+}
+const atEnd=()=>Math.round(view)>=hCount-1;
+function goLive(){
+  if(mode!=="review")return;
+  if(atEnd()&&(viewOX||viewOY)){moveCam(viewOX,viewOY);S.folN=0;}   // keep looking where you looked
+  viewOX=viewOY=0;mode="live";
+}
+function togglePlay(){if(mode==="live")enterReview();else if(atEnd())goLive();else commit(false);}
+function stepTime(dv){if(hCount<2)return;enterReview();view=Math.max(0,Math.min(hCount-1,Math.round(view)+dv));}
+
+// a moment of history, interpolated between snapshots (R.X/R.Y may point into the ix/iy buffers)
+const R={X:null,Y:null,T:null,cx:0,cy:0,fol:null,folN:0};
+function interp(v){
+  const n=S.n,Lx=S.Lx,Ly=S.Ly;
+  v=Math.max(0,Math.min(hCount-1,v));
+  const i0=Math.floor(v),i1=Math.min(hCount-1,i0+1),a=v-i0,s0=snapAt(i0),s1=snapAt(i1);
+  if(i1===i0||a<0.002){R.X=s0.X;R.Y=s0.Y;R.T=s0.t;R.cx=s0.camX;R.cy=s0.camY;}
+  else{
+    const X0=s0.X,Y0=s0.Y,X1=s1.X,Y1=s1.Y;
+    for(let i=0;i<n;i++){ix[i]=X0[i]+wr(X1[i]-X0[i],Lx)*a;iy[i]=Y0[i]+wr(Y1[i]-Y0[i],Ly)*a;}
+    R.X=ix;R.Y=iy;R.T=a<.5?s0.t:s1.t;
+    R.cx=s0.camX+wr(s1.camX-s0.camX,Lx)*a;R.cy=s0.camY+wr(s1.camY-s0.camY,Ly)*a;
+  }
+  const sf=a<.5?s0:s1;R.fol=sf.fol;R.folN=sf.folN;return R;
+}
+// what is on screen: the live world, or the past
+const D={X:null,Y:null,T:null,cx:0,cy:0,fol:null,folN:0};
+function displayState(){
+  if(mode==="live"){
+    // in between two steps: whatever the frame rate, the view moves evenly
+    if(prevOK&&alpha<1){
+      const n=S.n,Lx=S.Lx,Ly=S.Ly,a=alpha,X=S.x,Y=S.y;
+      for(let i=0;i<n;i++){lx[i]=prevX[i]+wd(X[i]-prevX[i],Lx)*a;ly[i]=prevY[i]+wd(Y[i]-prevY[i],Ly)*a;}
+      D.X=lx;D.Y=ly;
+    }else{D.X=S.x;D.Y=S.y;}
+    D.cx=VW.x;D.cy=VW.y;
+    D.T=S.typ;D.fol=S.fol;D.folN=S.folN;return D;
+  }
+  interp(view);
+  D.X=R.X;D.Y=R.Y;D.T=R.T;D.cx=VW.x;D.cy=VW.y;D.fol=R.fol;D.folN=R.folN;return D;
+}
+
+// ---- what you see ----
+// The world's camera already glides (camera()). Zoomed in beyond its margin a followed form could
+// still slip off screen; then the view leans towards it, eased, and only as far as the renewed edge
+// of the world stays out of sight. Otherwise the lean eases back to nothing.
+const VT={x:0,y:0};
+function camTarget(){
+  if(mode==="live"){
+    if(prevOK&&alpha<1){VT.x=pcx+wr(S.camX-pcx,S.Lx)*alpha;VT.y=pcy+wr(S.camY-pcy,S.Ly)*alpha;}
+    else{VT.x=S.camX;VT.y=S.camY;}
+  }else{
+    const v=Math.max(0,Math.min(hCount-1,view)),i0=Math.floor(v),i1=Math.min(hCount-1,i0+1),a=v-i0;
+    const s0=snapAt(i0),s1=snapAt(i1);
+    VT.x=s0.camX+wr(s1.camX-s0.camX,S.Lx)*a+viewOX;VT.y=s0.camY+wr(s1.camY-s0.camY,S.Ly)*a+viewOY;
+  }
+  return VT;
+}
+function updateView(ft){
+  const t=camTarget(),Lx=S.Lx,Ly=S.Ly,hw=W/2/zoom,hh=H/2/zoom;
+  let list=S.fol,cnt=tow.on?0:S.folN,X=S.x,Y=S.y,gx=0,gy=0;
+  if(mode==="review"){
+    const s=snapAt(Math.max(0,Math.min(hCount-1,Math.round(view))));
+    list=s.fol;cnt=viewOX||viewOY?0:s.folN;X=s.X;Y=s.Y;   // looking around in the past: no leaning
+  }
+  if(cnt){
+    body(list,cnt,X,Y);
+    const fx=wd(B.x-t.x,Lx),fy=wd(B.y-t.y,Ly),ax=0.7*hw,ay=0.7*hh;
+    const sx=Math.max(0,Lx/2-hw-RM),sy=Math.max(0,Ly/2-hh-RM);
+    gx=Math.max(-sx,Math.min(sx,fx>ax?fx-ax:fx<-ax?fx+ax:0));
+    gy=Math.max(-sy,Math.min(sy,fy>ay?fy-ay:fy<-ay?fy+ay:0));
+  }
+  const k=1-Math.exp(-Math.min(0.05,ft/1000)/0.3);
+  VW.ox+=(gx-VW.ox)*k;VW.oy+=(gy-VW.oy)*k;
+  VW.x=t.x+VW.ox;VW.y=t.y+VW.oy;
+}
+
+// ---- render ----
+const tc={x:0,y:0,z:1};let trailOK=false,reviewKey="",fadeN=0;
+function clearTrails(){trailOK=false;reviewKey="";}
+function fillBG(){ctx.globalCompositeOperation="source-over";ctx.fillStyle=BG;ctx.fillRect(0,0,W,H);}
+// the fading trails travel with the camera instead of smearing across the screen
+function shiftCanvas(ox,oy,s){
+  bctx.globalCompositeOperation="copy";bctx.drawImage(cv,0,0);
+  fillBG();ctx.drawImage(buf,W/2*(1-s)+ox,H/2*(1-s)+oy,W*s,H*s);
+}
+function dots(X,Y,T,cx,cy){
+  const n=S.n,Lx=S.Lx,Ly=S.Ly,hx=Lx*.5,hy=Ly*.5,z=zoom,mx=W/2,my=H/2;
+  const rad=Math.min(7,Math.max(1.3,2.5*z/z0()));
+  ctx.globalCompositeOperation="lighter";
+  for(let t=0;t<P.k;t++){
+    ctx.fillStyle=cols_[t];ctx.beginPath();
+    for(let i=0;i<n;i++){
+      if(T[i]!==t)continue;
+      let dx=X[i]-cx,dy=Y[i]-cy;
+      if(dx>hx)dx-=Lx;else if(dx<-hx)dx+=Lx;if(dy>hy)dy-=Ly;else if(dy<-hy)dy+=Ly;
+      const sx=mx+dx*z,sy=my+dy*z;
+      if(sx<-rad||sx>W+rad||sy<-rad||sy>H+rad)continue;
+      ctx.moveTo(sx+rad,sy);ctx.arc(sx,sy,rad,0,TAU);
+    }
+    ctx.fill();
+  }
+}
+// The past is drawn from scratch, its trails rebuilt from the moments just before it. Redrawing an
+// unchanged frame over its own trail would add the same light again and again and bleach it white.
+function renderReview(){
+  const d=displayState(),cx=d.cx,cy=d.cy,fol=d.fol,folN=d.folN;
+  const key=view+","+cx+","+cy+","+zoom+","+pal+","+P.fade+","+W+","+H;
+  if(key!==reviewKey){
+    reviewKey=key;fillBG();
+    const fade=Math.min(1,P.fade),m=fade>=1?0:5;
+    for(let j=m;j>=0;j--){   // 2 steps apart, faded as the live trail fades per step
+      const r=interp(view-j/3);ctx.globalAlpha=Math.pow(1-fade,2*j);dots(r.X,r.Y,r.T,cx,cy);
+    }
+    ctx.globalAlpha=1;tc.x=cx;tc.y=cy;tc.z=zoom;trailOK=true;
+  }
+  const r=interp(view);   // the overlay needs the moment itself
+  D.X=r.X;D.Y=r.Y;D.T=r.T;D.cx=cx;D.cy=cy;D.fol=fol;D.folN=folN;
+  drawOverlay(D);
+}
+function render(){
+  if(mode==="review"){renderReview();return;}
+  reviewKey="";
+  const d=displayState(),z=zoom,Lx=S.Lx,Ly=S.Ly;
+  if(!trailOK){fillBG();tc.x=d.cx;tc.y=d.cy;tc.z=z;trailOK=true;}
+  else if(Math.abs(z/tc.z-1)<1e-9){
+    const ox=Math.round(wr(tc.x-d.cx,Lx)*z),oy=Math.round(wr(tc.y-d.cy,Ly)*z);
+    if(Math.abs(ox)>=W||Math.abs(oy)>=H){fillBG();tc.x=d.cx;tc.y=d.cy;}
+    else if(ox||oy){shiftCanvas(ox,oy,1);
+      tc.x=d.cx+wr(tc.x-ox/z-d.cx,Lx);tc.y=d.cy+wr(tc.y-oy/z-d.cy,Ly);}
+  }else{
+    shiftCanvas(wr(tc.x-d.cx,Lx)*z,wr(tc.y-d.cy,Ly)*z,z/tc.z);tc.x=d.cx;tc.y=d.cy;tc.z=z;
+  }
+  ctx.globalCompositeOperation="source-over";ctx.fillStyle="rgba(5,6,10,"+P.fade+")";ctx.fillRect(0,0,W,H);
+  // 8-bit fading stalls a few levels above the background and leaves grey ghosts that the moving
+  // camera drags along; every third frame, take a fixed 3 off and floor at the background again
+  if(++fadeN%3===0){
+    ctx.globalCompositeOperation="difference";ctx.fillStyle="rgb(3,3,3)";ctx.fillRect(0,0,W,H);
+    ctx.globalCompositeOperation="lighten";ctx.fillStyle=BG;ctx.fillRect(0,0,W,H);
+  }
+  dots(d.X,d.Y,d.T,d.cx,d.cy);
+  drawOverlay(d);
+}
+
+// corner brackets around a form, on their own layer so they leave no trails
+const BX={x:0,y:0};
+function brackets(list,cnt,d,col,lw){
+  const Lx=S.Lx,Ly=S.Ly,z=zoom;body(list,cnt,d.X,d.Y);
+  const bx=W/2+wr(B.x-d.cx,Lx)*z,by=H/2+wr(B.y-d.cy,Ly)*z;
+  let x0=bx,x1=bx,y0=by,y1=by;
+  for(let q=0;q<cnt;q++){const i=list[q],sx=bx+wd(d.X[i]-B.x,Lx)*z,sy=by+wd(d.Y[i]-B.y,Ly)*z;
+    if(sx<x0)x0=sx;else if(sx>x1)x1=sx;if(sy<y0)y0=sy;else if(sy>y1)y1=sy;}
+  x0-=9;y0-=9;x1+=9;y1+=9;const L=Math.min(13,(x1-x0)/3,(y1-y0)/3);
+  octx.strokeStyle=col;octx.lineWidth=lw;octx.beginPath();
+  octx.moveTo(x0,y0+L);octx.lineTo(x0,y0);octx.lineTo(x0+L,y0);
+  octx.moveTo(x1-L,y0);octx.lineTo(x1,y0);octx.lineTo(x1,y0+L);
+  octx.moveTo(x1,y1-L);octx.lineTo(x1,y1);octx.lineTo(x1-L,y1);
+  octx.moveTo(x0+L,y1);octx.lineTo(x0,y1);octx.lineTo(x0,y1-L);
+  octx.stroke();BX.x=bx;BX.y=by;
+}
+const trail=[];   // fading cursor path while you stir the swarm
+function pushTrail(x,y){const t=trail;if(t.length){const p=t[t.length-1];
+  if((x-p.x)*(x-p.x)+(y-p.y)*(y-p.y)<36)return;}t.push({x,y,l:1});if(t.length>240)t.shift();}
+function drawOverlay(d){
+  octx.clearRect(0,0,W,H);
+  if(hover&&!tow.on)brackets(hover.list,hover.n,d,"rgba(57,224,200,.45)",1);
+  if(d.folN)brackets(d.fol,d.folN,d,tow.on?"rgba(255,210,74,.95)":"rgba(57,224,200,.85)",1.5);
+  if(tow.on){octx.strokeStyle="rgba(255,210,74,.55)";octx.lineWidth=1;octx.setLineDash([3,4]);
+    octx.beginPath();octx.moveTo(tow.sx,tow.sy);octx.lineTo(BX.x,BX.y);octx.stroke();octx.setLineDash([]);}
+  if(trail.length){
+    const rgb=stir.mode>0?"255,150,90":"120,230,255";   // push = warm, pull = cool
+    octx.globalCompositeOperation="lighter";
+    for(let i=trail.length-1;i>=0;i--){const p=trail[i];p.l-=0.009;
+      if(p.l<=0){trail.splice(i,1);continue;}
+      octx.fillStyle="rgba("+rgb+","+(p.l*0.4).toFixed(3)+")";
+      octx.beginPath();octx.arc(p.x,p.y,4+11*p.l,0,TAU);octx.fill();}
+    octx.globalCompositeOperation="source-over";
+  }
+}
+
+// ---- audio: the swarm conducts a generative ambient piece (as in Primordium) ----
+let actx=null,master,dFilt,dGain,send,notes=[],eSm=0,ePk=1,audioOn=0,lastNote=0,noteGap=1;
+function audioInit(){
+  actx=new (window.AudioContext||window.webkitAudioContext)();
+  master=actx.createGain();master.gain.value=0;master.connect(actx.destination);
+  const dl=actx.createDelay(1),fb=actx.createGain(),dlp=actx.createBiquadFilter();
+  dl.delayTime.value=0.45;fb.gain.value=0.42;dlp.type="lowpass";dlp.frequency.value=2000;
+  send=actx.createGain();send.gain.value=0.6;
+  send.connect(dl);dl.connect(dlp);dlp.connect(fb);fb.connect(dl);dl.connect(master);
+  dFilt=actx.createBiquadFilter();dFilt.type="lowpass";dFilt.frequency.value=400;dFilt.Q.value=3;
+  dGain=actx.createGain();dGain.gain.value=0.06;
+  dFilt.connect(dGain);dGain.connect(master);dGain.connect(send);
+  [55,82.5,110].forEach((f,i)=>{const o=actx.createOscillator();
+    o.type=i?"sawtooth":"triangle";o.frequency.value=f;o.detune.value=(i-1)*5;o.connect(dFilt);o.start();});
+  const lfo=actx.createOscillator(),lg=actx.createGain();
+  lfo.frequency.value=0.05;lg.gain.value=260;lfo.connect(lg);lg.connect(dFilt.frequency);lfo.start();
+  for(let o=0;o<4;o++)for(const s of [0,3,5,7,10])notes.push(110*Math.pow(2,(s+12*o)/12)); // A minor pentatonic
+}
+function note(L,now){
+  const f=notes[(Math.random()*Math.max(3,(L*notes.length)|0))|0];
+  const o=actx.createOscillator(),g=actx.createGain(),rel=2.5+Math.random()*2.5;
+  o.type="sine";o.frequency.value=f;o.connect(g);g.connect(master);g.connect(send);
+  g.gain.linearRampToValueAtTime(0.11,now+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0008,now+0.03+rel);
+  o.start(now);o.stop(now+rel+0.2);
+}
+function audioToggle(){
+  if(!actx)audioInit();
+  if(actx.state==="suspended")actx.resume();
+  audioOn^=1;
+  master.gain.setTargetAtTime(audioOn?0.5:0,actx.currentTime,0.4);
+  const b=$("bAud");b.classList.toggle("on",!!audioOn);b.setAttribute("aria-pressed",audioOn?"true":"false");
+  b.innerHTML=audioOn?"&#128266; Audio":"&#128263; Audio";
+}
+function audioFrame(){
+  if(!audioOn||!actx)return;
+  let s=0;const n=S.n;for(let i=0;i<n;i++)s+=S.vx[i]*S.vx[i]+S.vy[i]*S.vy[i];
+  eSm+=((n?s/n:0)-eSm)*0.1;ePk=Math.max(ePk*0.995,eSm,1e-6);
+  const L=Math.min(1,eSm/ePk),now=actx.currentTime,quiet=mode!=="live";
+  dFilt.frequency.setTargetAtTime(240+L*L*2400,now,0.25);
+  dGain.gain.setTargetAtTime(quiet?0:0.045+0.05*L,now,0.3);
+  if(!quiet&&now-lastNote>noteGap){lastNote=now;note(L,now);noteGap=(2.3-1.8*L)*(0.6+0.8*Math.random());}
+}
+
+// ---- the panel: sliders (generated) ----
+const defs=[
+  {k:"n",   t:"particles", mn:300, mx:NMAX, st:20,   g:()=>P.n,    s:v=>{P.n=+v;resetWorld();},  f:v=>v|0},
+  {k:"k",   t:"species",   mn:2,   mx:8,    st:1,    g:()=>P.k,    s:v=>{P.k=+v;onK();},         f:v=>v|0},
+  {k:"rN",  t:"radius",    mn:0.04,mx:0.22, st:0.005,g:()=>P.rN,   s:v=>{P.rN=+v;setRM();},      f:v=>((v*100)|0)+"%",rule:1},
+  {k:"force",t:"force",    mn:1,   mx:40,   st:1,    g:()=>P.force,s:v=>{P.force=+v;},           f:v=>v|0,rule:1},
+  {k:"fhl", t:"glide",     mn:0.01,mx:0.2,  st:0.005,g:()=>P.fhl,  s:v=>{P.fhl=+v;},             f:v=>(+v).toFixed(2),rule:1},
+  {k:"beta",t:"core",      mn:0.05,mx:0.5,  st:0.01, g:()=>P.beta, s:v=>{P.beta=+v;},            f:v=>(+v).toFixed(2),rule:1},
+  {k:"dt",  t:"speed",     mn:0.004,mx:0.05,st:0.002,g:()=>P.dt,   s:v=>{P.dt=+v;},              f:v=>(+v).toFixed(3),rule:1},
+  {k:"fade",t:"trail",     mn:0.03,mx:1,    st:0.01, g:()=>P.fade, s:v=>{P.fade=+v;clearTrails();},f:v=>(+v>=1?"off":(+v).toFixed(2))}
+];
+const rngs={};
+function buildSliders(){
+  const C=$("ctrls");
+  defs.forEach(d=>{
+    const lab=document.createElement("div");lab.className="row";
+    const nm=document.createElement("label");nm.textContent=d.t;nm.htmlFor="s_"+d.k;
+    const val=document.createElement("b");val.textContent=d.f(d.g());
+    const inp=document.createElement("input");inp.type="range";inp.id="s_"+d.k;
+    inp.min=d.mn;inp.max=d.mx;inp.step=d.st;inp.value=d.g();
+    inp.addEventListener("input",()=>applySlider(d,inp.value));
+    lab.appendChild(nm);lab.appendChild(val);C.appendChild(lab);C.appendChild(inp);
+    rngs[d.k]={inp,val,d};
+  });
+}
+function applySlider(d,v){
+  if(d.rule)live();
+  d.s(""+v);const r=rngs[d.k];r.inp.value=v;r.val.textContent=d.f(d.g());
+  if(d.rule){rulesChanged();uiRv=-1;}   // written directly: let syncUI take stock again
+}
+function randSettings(){defs.forEach(d=>applySlider(d,Math.round((d.mn+Math.random()*(d.mx-d.mn))/d.st)*d.st));}
+function resetSettings(){defs.forEach(d=>applySlider(d,DEF[d.k]));}
+function onK(){buildColors();genSeed(S.seed);resetWorld();buildMx();}
+
+// ---- interaction matrix editor: drag a cell up/down, or arrows + plus/minus from the keyboard ----
+const mx=$("mx");let mxCur=0,mdrag=null;
+function cellColor(v){const a=(0.1+0.9*Math.abs(v)).toFixed(2);
+  return v>=0?"rgba(60,232,170,"+a+")":"rgba(244,72,96,"+a+")";}
+function buildMx(){
+  const k=P.k;if(mxCur>=k*k)mxCur=0;
+  mx.style.gridTemplateColumns="repeat("+k+",1fr)";mx.innerHTML="";
+  for(let i=0;i<k;i++)for(let j=0;j<k;j++){
+    const d=document.createElement("div");d.dataset.i=i;d.dataset.j=j;
+    d.style.borderLeft="2px solid "+cols_[i];d.style.borderTop="2px solid "+cols_[j];
+    if(i*k+j===mxCur)d.className="cur";
+    mx.appendChild(d);
+  }
+  uiRv=-1;
+}
+function paintMx(M){const k=P.k;for(const d of mx.children)d.style.background=cellColor(M[(+d.dataset.i)*k+(+d.dataset.j)]);}
+function setCell(i,j,v){live();mat[i*P.k+j]=v<-1?-1:v>1?1:v;S.custom=true;rulesChanged();}
+function markCur(){
+  const k=P.k;[...mx.children].forEach((d,q)=>d.classList.toggle("cur",q===mxCur));
+  const i=(mxCur/k)|0,j=mxCur%k;
+  mx.setAttribute("aria-label","Interaction matrix: species "+(i+1)+" toward species "+(j+1)+" = "+
+    mat[mxCur].toFixed(2)+". Arrow keys choose a cell, plus and minus change it.");
+}
+mx.addEventListener("pointerdown",e=>{
+  const d=e.target.closest("#mx>div");if(!d)return;
+  const i=+d.dataset.i,j=+d.dataset.j;live();
+  mxCur=i*P.k+j;markCur();
+  mdrag={i,j,y:e.clientY,v:mat[i*P.k+j]};mx.setPointerCapture(e.pointerId);e.preventDefault();
+});
+mx.addEventListener("pointermove",e=>{if(mdrag)setCell(mdrag.i,mdrag.j,mdrag.v-(e.clientY-mdrag.y)/120);});
+addEventListener("pointerup",()=>{mdrag=null;});
+mx.addEventListener("keydown",e=>{
+  const k=P.k,i=(mxCur/k)|0,j=mxCur%k,key=e.key;let used=true;
+  if(key==="ArrowLeft")mxCur=i*k+(j+k-1)%k;else if(key==="ArrowRight")mxCur=i*k+(j+1)%k;
+  else if(key==="ArrowUp")mxCur=((i+k-1)%k)*k+j;else if(key==="ArrowDown")mxCur=((i+1)%k)*k+j;
+  else if(key==="+"||key==="=")setCell(i,j,mat[mxCur]+(e.shiftKey?0.02:0.1));
+  else if(key==="-"||key==="_")setCell(i,j,mat[mxCur]-(e.shiftKey?0.02:0.1));
+  else used=false;
+  if(used){e.preventDefault();e.stopPropagation();markCur();}
+});
+
+// The panel shows the rules of the moment on screen: scrub back past a Mutate and the grid follows.
+let uiRv=-1;
+function syncUI(){
+  const src=mode==="review"?snapAt(Math.max(0,Math.min(hCount-1,Math.round(view)))):null;
+  const rv=src?src.rv:S.rv;if(rv===uiRv)return;uiRv=rv;
+  const g=src||{m:mat,rN:P.rN,force:P.force,fhl:P.fhl,beta:P.beta,dt:P.dt,evo:S.evo,seed:S.seed,custom:S.custom};
+  for(const key of ["rN","force","fhl","beta","dt"]){const r=rngs[key];r.inp.value=g[key];r.val.textContent=r.d.f(g[key]);}
+  paintMx(g.m);
+  if(document.activeElement!==$("seedIn"))$("seedIn").value=g.custom?"custom":g.seed.toString(36);
+  const b=$("bEvo");b.classList.toggle("on",!!g.evo);b.setAttribute("aria-pressed",g.evo?"true":"false");
+}
+
+// ---- interaction ----
+function msg(s){const m=$("msg");m.textContent=s;m.style.opacity=1;hideHint();
+  clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.opacity=0,4500);}
+function hideHint(){$("hint").style.opacity=0;}
+// a camera move by hand shifts the in-between view too, so the picture stays under your finger
+function moveCam(dx,dy){S.camX+=dx;S.camY+=dy;S.tX+=dx;S.tY+=dy;pcx+=dx;pcy+=dy;VW.x+=dx;VW.y+=dy;}
+function panBy(dx,dy){   // screen pixels
+  if(mode==="review"){viewOX-=dx/zoom;viewOY-=dy/zoom;VW.x-=dx/zoom;VW.y-=dy/zoom;}
+  else{S.folN=0;S.cvx=S.cvy=0;moveCam(-dx/zoom,-dy/zoom);}
+}
+function setZoom(nz,sx,sy){   // keeps the world point under (sx,sy) in place
+  nz=Math.min(zMax,Math.max(zMin,nz));if(nz===zoom)return;
+  if(sx!=null&&!(mode==="live"&&S.folN)){
+    const k=1/zoom-1/nz,ddx=(sx-W/2)*k,ddy=(sy-H/2)*k;
+    if(mode==="review"){viewOX+=ddx;viewOY+=ddy;VW.x+=ddx;VW.y+=ddy;}else moveCam(ddx,ddy);
+  }
+  zoom=nz;
+}
+// touching a form, also in the past, sets time flowing again from that moment
+function follow(hit){
+  live();S.fol.set(hit.list);S.folN=hit.n;
+  msg("Following a form of "+hit.n+" particles.");
+}
+function unfollow(){if(mode==="live"&&S.folN){S.folN=0;msg("Let go.");}}
+function toggleFollow(){
+  if(mode==="live"&&S.folN){unfollow();return;}
+  const h=largestNearCentre();if(h)follow(h);else msg("No form near the centre of the view.");
+}
+function startTow(hit,sx,sy){
+  live();tow.list.set(hit.list);tow.n=hit.n;
+  body(tow.list,tow.n,S.x,S.y);
+  tow.ox=wd(B.x-(VW.x+(sx-W/2)/zoom),S.Lx);tow.oy=wd(B.y-(VW.y+(sy-H/2)/zoom),S.Ly);
+  tow.sx=sx;tow.sy=sy;tow.on=true;
+  S.fol.set(hit.list);S.folN=hit.n;   // once released, the camera follows it
+}
+function beginStir(sx,sy){live();stir.on=true;stir.sx=sx;stir.sy=sy;pushTrail(sx,sy);}
+function edgeScroll(){   // towing to the edge of the screen carries the view along
+  if(!tow.on)return;const m=60;let dx=0,dy=0;
+  if(tow.sx<m)dx=-(m-tow.sx)/m;else if(tow.sx>W-m)dx=(tow.sx-W+m)/m;
+  if(tow.sy<m)dy=-(m-tow.sy)/m;else if(tow.sy>H-m)dy=(tow.sy-H+m)/m;
+  if(dx||dy)moveCam(dx*9/zoom,dy*9/zoom);
+}
+// mouse modes: Look (look around, tow forms) or Primordium's Push / Pull
+let mm=0;
+const MM=[["&#128065; Look","Drag empty space to look around, drag a form to tow it. Click to switch to Push."],
+  ["&#9995; Push","Drag to push the swarm away, as in Primordium; right-drag looks around. Click to switch to Pull."],
+  ["&#129522; Pull","Drag to pull the swarm in; right-drag looks around. Click to switch to Look."]];
+function cycleMouse(){mm=(mm+1)%3;const b=$("bMouse");b.innerHTML=MM[mm][0];b.title=MM[mm][1];
+  stir.mode=mm===2?-1:1;setCursor();}
+
+const ptrs=new Map(),pointer={x:0,y:0,in:false};
+function setCursor(){cv.className=drag&&drag.kind==="pan"&&drag.moved?"panning":tow.on?"grabbing":
+  hover&&mm===0?"can-grab":mm?"stir":"";}
+cv.addEventListener("contextmenu",e=>e.preventDefault());
+cv.addEventListener("pointerdown",e=>{
+  cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});hideHint();
+  if(ptrs.size===2){tow.on=false;stir.on=false;const [a,b]=[...ptrs.values()];
+    drag={kind:"pinch",d0:Math.hypot(a.x-b.x,a.y-b.y)||1,z0:zoom};return;}
+  if(ptrs.size>2)return;
+  const base={x0:e.clientX,y0:e.clientY,lx:e.clientX,ly:e.clientY,moved:false};
+  if(e.button===1||e.button===2){drag=Object.assign({kind:"pan"},base);setCursor();return;}
+  const hit=pickAt(e.clientX,e.clientY);
+  if(mm===0)drag=Object.assign({kind:hit?"grab":"pan",hit},base);
+  else{drag=Object.assign({kind:"stir",hit},base);if(!hit)beginStir(e.clientX,e.clientY);}
+  setCursor();
+});
+cv.addEventListener("pointermove",e=>{
+  const p=ptrs.get(e.pointerId);if(p){p.x=e.clientX;p.y=e.clientY;}
+  if(e.pointerType!=="touch"){pointer.x=e.clientX;pointer.y=e.clientY;pointer.in=true;}
+  if(!drag)return;
+  if(drag.kind==="pinch"){if(ptrs.size<2)return;const [a,b]=[...ptrs.values()];
+    setZoom(drag.z0*Math.hypot(a.x-b.x,a.y-b.y)/drag.d0,(a.x+b.x)/2,(a.y+b.y)/2);return;}
+  if(!drag.moved&&Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)<5)return;
+  if(drag.kind==="pan"){drag.moved=true;panBy(e.clientX-drag.lx,e.clientY-drag.ly);drag.lx=e.clientX;drag.ly=e.clientY;}
+  else if(drag.kind==="stir"){drag.moved=true;if(!stir.on)beginStir(e.clientX,e.clientY);
+    stir.sx=e.clientX;stir.sy=e.clientY;pushTrail(e.clientX,e.clientY);}
+  else{if(!drag.moved){drag.moved=true;startTow(drag.hit,drag.x0,drag.y0);}tow.sx=e.clientX;tow.sy=e.clientY;}
+  setCursor();
+});
+function pointerUp(e){
+  if(!ptrs.delete(e.pointerId)||!drag)return;
+  if(drag.kind==="grab"){if(drag.moved)tow.on=false;else follow(drag.hit);}
+  else if(drag.kind==="stir"){stir.on=false;if(!drag.moved&&drag.hit)follow(drag.hit);}
+  else if(drag.kind==="pan"&&!drag.moved)unfollow();
+  drag=null;setCursor();
+}
+cv.addEventListener("pointerup",pointerUp);cv.addEventListener("pointercancel",pointerUp);
+cv.addEventListener("pointerleave",()=>{pointer.in=false;if(!drag){hover=null;setCursor();}});
+cv.addEventListener("wheel",e=>{e.preventDefault();hideHint();
+  setZoom(zoom*Math.exp(-e.deltaY*0.0015),e.clientX,e.clientY);},{passive:false});
+let hoverT=0;
+function hoverUpdate(t){
+  if(drag||!pointer.in||t-hoverT<200)return;hoverT=t;
+  hover=pickAt(pointer.x,pointer.y);setCursor();
+}
+
+// keyboard: arrows look around, shift+arrows tow the followed form
+const held=new Set();let shift=false;
+function keyInput(){
+  let ax=0,ay=0;
+  if(held.has("ArrowLeft"))ax--;if(held.has("ArrowRight"))ax++;
+  if(held.has("ArrowUp"))ay--;if(held.has("ArrowDown"))ay++;
+  keyTow.x=keyTow.y=0;
+  if(!ax&&!ay)return;
+  if(shift){
+    if(mode==="review"){if(!displayState().folN)return;commit(true);}
+    if(!S.folN)return;
+    keyTow.x=ax;keyTow.y=ay;
+  }else panBy(-ax*9,-ay*9);
+}
+const tSl=$("tSl");
+tSl.addEventListener("input",()=>{enterReview();view=+tSl.value;});
+tSl.addEventListener("keydown",e=>{
+  const k=e.key,big=e.shiftKey?10:1;let dv=0;
+  if(k==="ArrowLeft"||k==="ArrowDown")dv=-big;else if(k==="ArrowRight"||k==="ArrowUp")dv=big;
+  else if(k==="PageDown")dv=-10;else if(k==="PageUp")dv=10;
+  else if(k==="Home")dv=-HIST;else if(k==="End")dv=HIST;
+  if(dv){e.preventDefault();stepTime(dv);}
+});
+// rule-changing actions, each one continuing history from the moment on screen
+function doRandomize(){live();genSeed(rand32());}
+function doMutate(){live();mutate(0.25,Math.random);}
+function doEvolve(){live();S.evo=!S.evo;rulesChanged();}
+function doPreset(p){live();preset(p);}
+function doRespawn(){live();spawnPositions();clearTrails();}
+function doLoad(){const v=parseInt($("seedIn").value.trim(),36);if(!isNaN(v)){live();genSeed(v);}}
+addEventListener("keydown",e=>{
+  shift=e.shiftKey;
+  const tg=e.target,k=e.key;
+  if(tg.tagName==="INPUT"&&tg.type!=="range")return;
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if($("about").classList.contains("show")){if(k==="Escape")closeAbout();return;}
+  if(k.startsWith("Arrow")){if(tg.tagName!=="INPUT"){held.add(k);e.preventDefault();hideHint();}return;}
+  if((k===" "||k==="Enter")&&tg.tagName==="BUTTON")return;
+  const c=k.toLowerCase();
+  if(k===" "){togglePlay();e.preventDefault();}
+  else if(k===","||k==="<")stepTime(e.shiftKey?-10:-1);
+  else if(k==="."||k===">")stepTime(e.shiftKey?10:1);
+  else if(k==="+"||k==="=")setZoom(zoom*1.2,null);
+  else if(k==="-"||k==="_")setZoom(zoom/1.2,null);
+  else if(k==="0")setZoom(z0(),null);
+  else if(k==="Escape")unfollow();
+  else if(c==="r")doRandomize();
+  else if(c==="m")doMutate();
+  else if(c==="e")doEvolve();
+  else if(c==="p")cyclePal();
+  else if(c==="a")audioToggle();
+  else if(c==="n")doRespawn();
+  else if(c==="s")snap();
+  else if(c==="h")toggleUI();
+  else if(c==="i")openAbout();
+  else if(c==="f")toggleFollow();
+  else if(c==="l")goLive();
+});
+addEventListener("keyup",e=>{shift=e.shiftKey;held.delete(e.key);});
+addEventListener("blur",()=>{held.clear();shift=false;});
+
+// ---- panel wiring ----
+function cyclePal(){pal=(pal+1)%pals.length;buildColors();buildMx();}
+function snap(){const a=document.createElement("a"),
+  t=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,19).replace(/[-:]/g,"").replace("T","-");
+  a.download="navis_"+(S.custom?"custom":S.seed.toString(36))+"_"+t+".png";a.href=cv.toDataURL("image/png");a.click();}
+// The panel slides away after 15 s without use, as in Primordium; only a mouse resting on it keeps
+// it. Focus inside it moves to the menu button, so the keyboard can bring it straight back.
+const ui=$("ui");let hideT;
+function hideUI(force){
+  if(!force&&!COARSE&&ui.matches(":hover")){armHide();return;}
+  const had=ui.contains(document.activeElement);
+  ui.classList.add("hide");ui.inert=true;$("tog").style.display="block";if(had)$("tog").focus();
+}
+function showUI(){ui.classList.remove("hide");ui.inert=false;$("tog").style.display="none";armHide();}
+function armHide(){clearTimeout(hideT);hideT=setTimeout(()=>hideUI(false),15000);}
+function toggleUI(){if(ui.classList.contains("hide")){showUI();$("bRand").focus();}else hideUI(true);}
+["pointermove","pointerdown","input","keydown","focusin","wheel"].forEach(ev=>ui.addEventListener(ev,armHide));
+// A button clicked with the mouse lets go of the focus, so space keeps meaning pause and not
+// "press that button again". Keyboard presses (detail 0) keep it, for keyboard users.
+addEventListener("click",e=>{const b=e.target.closest("button");
+  if(b&&e.detail>0)b.blur();});
+function openAbout(){$("about").classList.add("show");$("aClose").focus();}
+function closeAbout(){$("about").classList.remove("show");if(!ui.inert)$("bAbout").focus();}
+$("bRand").onclick=doRandomize;
+$("bReset").onclick=doRespawn;
+$("bPause").onclick=togglePlay;
+$("bMouse").onclick=cycleMouse;
+$("bAud").onclick=audioToggle;
+document.querySelectorAll(".pre button").forEach(b=>b.onclick=()=>doPreset(b.dataset.p));
+$("bMut").onclick=doMutate;
+$("bEvo").onclick=doEvolve;
+$("bPal").onclick=cyclePal;
+$("bRng").onclick=randSettings;
+$("bDef").onclick=resetSettings;
+$("bSnap").onclick=snap;
+$("bSeed").onclick=doLoad;
+$("seedIn").addEventListener("keydown",e=>{if(e.key==="Enter")doLoad();});
+$("bFol").onclick=toggleFollow;
+$("bZoom").onclick=()=>setZoom(z0(),null);
+$("bPlay").onclick=togglePlay;
+$("bLive").onclick=goLive;
+$("bAbout").onclick=openAbout;$("aClose").onclick=closeAbout;
+$("about").onclick=e=>{if(e.target===$("about"))closeAbout();};
+$("bHide").onclick=()=>hideUI(true);
+$("tog").onclick=e=>{showUI();if(!e.detail)$("bRand").focus();};   // from the keyboard: straight into the panel
+
+let lastPct=-1,lastLbl="",lastPlay="",hudT=0;
+function updTimeline(){
+  const max=Math.max(0,hCount-1);if(+tSl.max!==max)tSl.max=max;
+  const v=mode==="review"?view:max;tSl.value=v;
+  const pct=max?Math.round(v/max*1000)/10:100;
+  if(pct!==lastPct){lastPct=pct;
+    tSl.style.background="linear-gradient(90deg,rgba(57,224,200,.6) "+pct+"%,#1d2740 "+pct+"%)";}
+  let lbl;
+  if(mode==="live")lbl="LIVE";
+  else if(atEnd())lbl="PAUSED";
+  else{const s0=snapAt(Math.round(view)).step,sN=snapAt(max).step;
+    lbl="−"+((sN-s0)/SPS).toFixed(1)+" s";}
+  if(lbl!==lastLbl){lastLbl=lbl;$("tTime").textContent=lbl;tSl.setAttribute("aria-valuetext",lbl);}
+  const pl=mode==="live"?"pause":atEnd()?"play":"replay";
+  if(pl!==lastPlay){lastPlay=pl;
+    $("bPlay").innerHTML=pl==="pause"?"&#10073;&#10073;":"&#9654;";
+    $("bPlay").setAttribute("aria-label",pl==="pause"?"Pause":pl==="play"?"Play":"Play from this moment");
+    $("bPause").innerHTML=pl==="pause"?"&#10073;&#10073; Pause":"&#9654; Play";}
+}
+function updHud(t){
+  if(t-hudT<250)return;hudT=t;
+  const f=mode==="live"?S.folN:displayState().folN;
+  $("hud").innerHTML=(fps|0)+" fps · "+S.n+" particles · "+P.k+" species<br>"+
+    (f?"following · "+f:"free camera")+(mode==="review"?" · past":"");
+  const fb=$("bFol"),on=mode==="live"&&S.folN>0;
+  fb.classList.toggle("on",on);fb.innerHTML=on?"&#9678; Let go":"&#9678; Follow";
+}
+
+// ---- loop ----
+let last=performance.now(),acc=0,fps=60;
+function frame(t){
+  requestAnimationFrame(frame);
+  const ft=Math.min(100,Math.max(0,t-last));last=t;if(ft>0)fps+=(1000/ft-fps)*0.05;
+  if(!S.n)return;
+  keyInput();edgeScroll();
+  if(mode==="live"){
+    const per=1000/SPS;acc+=ft;let k=Math.floor(acc/per);
+    if(k>3){k=3;acc=0;}else acc-=k*per;
+    for(let i=0;i<k;i++)tick();
+    alpha=acc/per;
+  }else{acc=0;alpha=1;}
+  if(lost){lost=false;msg("The form dissolved. Drag the timeline back to see it again.");}
+  updateView(ft);hoverUpdate(t);
+  render();syncUI();updTimeline();updHud(t);audioFrame();
+}
+function resize(){
+  const oz=W&&H?z0():0;
+  W=cv.width=ov.width=buf.width=innerWidth;H=cv.height=ov.height=buf.height=innerHeight;
+  if(!W||!H)return;
+  if(S.n){if(oz)zoom*=z0()/oz;zoomBounds();}
+  else boot();   // the world is sized from the screen, so it waits for a real one
+  clearTrails();
+}
+addEventListener("resize",resize);
+
+// ---- boot ----
+function boot(){
+  setRM();
+  const [Lx,Ly]=boxSize();
+  P.n=DEF.n=Math.min(NMAX,Math.round(DENS*Lx*Ly/20)*20);
+  buildSliders();genSeed(rand32());resetWorld();zoom=z0();zoomBounds();buildMx();
+}
+if(COARSE)$("hint").innerHTML="drag to look around &middot; tap a form to follow it &middot; drag it to tow &middot; pinch to zoom &middot; rewind on the timeline";
+buildColors();resize();armHide();
+setTimeout(hideHint,9000);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
