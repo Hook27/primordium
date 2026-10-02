@@ -174,7 +174,8 @@
   a new species, at rest. The number of particles never grows, yet there is always new soup ahead of you.</p>
   <h3>Forms</h3>
   <p><b>Click</b> a form and the camera follows it, re-identifying it four times a second as particles join
-  and leave. In <b>Look</b> mode, <b>drag</b> a form to tow it: every particle in it receives the very same
+  and leave. The form remembers its own particles: brushing past another form does not make it that
+  one, only a lasting merger slowly does. In <b>Look</b> mode, <b>drag</b> a form to tow it: every particle in it receives the very same
   push, so its shape and its own motion stay intact. In <b>Push</b> and <b>Pull</b> mode, dragging stirs the
   swarm as in Primordium; right-drag still looks around.</p>
   <h3>Time</h3>
@@ -220,8 +221,8 @@ const wr=(d,L)=>d-L*Math.round(d/L);        // the same for any distance
 let RM=R0,LINK2=(0.5*R0)**2;                // interaction radius now, and the link distance of a form
 
 // ---- world state: everything a snapshot must hold to replay exactly ----
-const S={n:0,Lx:1,Ly:1,x:null,y:null,vx:null,vy:null,typ:null,rng:1,camX:0,camY:0,
-  fol:new Int32Array(CAP),folN:0,step:0,evo:false,seed:0,custom:false,rv:0,
+const S={n:0,Lx:1,Ly:1,x:null,y:null,vx:null,vy:null,typ:null,aff:null,rng:1,camX:0,camY:0,
+  fol:new Int32Array(CAP),folW:new Float32Array(CAP),folN:0,step:0,evo:false,seed:0,custom:false,rv:0,
   tX:0,tY:0,cvx:0,cvy:0,fvx:0,fvy:0};   // camera: tight tracker, own velocity, tracker velocity smoothed
 // The camera glides after a followed form (tuned on recorded flights of the fastest forms): a calm
 // zone in the middle, the form's velocity averaged over 0.4 s, speed changes eased, ever firmer as the
@@ -237,7 +238,7 @@ let RVC=0;function rulesChanged(){S.rv=++RVC;}   // every rule state gets its ow
 let zoom=1,zMin=0.5,zMax=4;
 let cols=3,rows=3,cw=1,ch=1;
 const gPhys={},gPick={};
-let stamp,queue,mark,gen=0,bfsTrunc=false,ix,iy;
+let stamp,queue,gen=0,bfsTrunc=false,ix,iy;
 let mode="live",view=0,viewOX=0,viewOY=0,lost=false;
 const tow={on:false,list:new Int32Array(CAP),n:0,sx:0,sy:0,ox:0,oy:0};
 const stir={on:false,sx:0,sy:0,mode:1};
@@ -287,9 +288,9 @@ function resetWorld(){
   [S.Lx,S.Ly]=boxSize();
   const n=S.n=P.n;
   S.x=new Float32Array(n);S.y=new Float32Array(n);S.vx=new Float32Array(n);S.vy=new Float32Array(n);
-  S.typ=new Uint8Array(n);
+  S.typ=new Uint8Array(n);S.aff=new Float32Array(n);
   for(const g of [gPhys,gPick]){g.head=null;g.nxt=new Int32Array(n);g.cel=new Int32Array(n);}
-  stamp=new Int32Array(n);queue=new Int32Array(n);mark=new Uint8Array(n);gen=0;
+  stamp=new Int32Array(n);queue=new Int32Array(n);gen=0;
   ix=new Float32Array(n);iy=new Float32Array(n);lx=new Float32Array(n);ly=new Float32Array(n);
   prevX=new Float32Array(n);prevY=new Float32Array(n);prevOK=false;
   S.tX=S.camX;S.tY=S.camY;S.cvx=S.cvy=S.fvx=S.fvy=0;VW.ox=VW.oy=0;
@@ -367,15 +368,17 @@ function stirForce(){
   }
 }
 
-// centroid of a member list (minimum image around its first member) and its mean velocity
+// centroid of a member list (minimum image around its first member) and its mean velocity,
+// optionally weighted (a followed form: its own particles count, newcomers barely)
 const B={x:0,y:0},MV={x:0,y:0};
-function body(list,cnt,X,Y){
-  const Lx=S.Lx,Ly=S.Ly,rx=X[list[0]],ry=Y[list[0]];let sx=0,sy=0;
-  for(let q=0;q<cnt;q++){const i=list[q];sx+=wd(X[i]-rx,Lx);sy+=wd(Y[i]-ry,Ly);}
-  B.x=rx+sx/cnt;B.y=ry+sy/cnt;
+function body(list,cnt,X,Y,w){
+  const Lx=S.Lx,Ly=S.Ly,rx=X[list[0]],ry=Y[list[0]];let sx=0,sy=0,sw=0;
+  for(let q=0;q<cnt;q++){const i=list[q],a=w?w[q]:1;sx+=wd(X[i]-rx,Lx)*a;sy+=wd(Y[i]-ry,Ly)*a;sw+=a;}
+  B.x=rx+sx/sw;B.y=ry+sy/sw;
 }
-function meanV(list,cnt){let a=0,b=0;for(let q=0;q<cnt;q++){const i=list[q];a+=S.vx[i];b+=S.vy[i];}
-  MV.x=a/cnt;MV.y=b/cnt;}
+function meanV(list,cnt,w){let a=0,b=0,sw=0;
+  for(let q=0;q<cnt;q++){const i=list[q],k=w?w[q]:1;a+=S.vx[i]*k;b+=S.vy[i]*k;sw+=k;}
+  MV.x=a/sw;MV.y=b/sw;}
 // one and the same velocity change for every member: the form moves as a whole, its inner motion untouched
 function push(list,cnt,ux,uy,gain){
   meanV(list,cnt);const ax=(ux-MV.x)*gain,ay=(uy-MV.y)*gain;
@@ -390,7 +393,7 @@ function camera(dt){
     return;
   }
   // a tight tracker irons out the jumps of a changing membership...
-  body(S.fol,S.folN,S.x,S.y);meanV(S.fol,S.folN);
+  body(S.fol,S.folN,S.x,S.y,S.folW);meanV(S.fol,S.folN,S.folW);
   const ptx=S.tX,pty=S.tY;
   S.tX+=MV.x*dt+wd(B.x-S.tX,Lx)*0.05;S.tY+=MV.y*dt+wd(B.y-S.tY,Ly)*0.05;
   // ...and the camera glides after that tracker
@@ -441,7 +444,7 @@ function renew(){
   const cx=S.camX,cy=S.camY;
   for(let i=0;i<n;i++){
     const kx=Math.floor((x[i]-cx)/Lx+.5),ky=Math.floor((y[i]-cy)/Ly+.5);
-    if(kx|ky){x[i]-=kx*Lx;y[i]-=ky*Ly;typ[i]=(rnd()*k)|0;vx[i]=0;vy[i]=0;}
+    if(kx|ky){x[i]-=kx*Lx;y[i]-=ky*Ly;typ[i]=(rnd()*k)|0;vx[i]=0;vy[i]=0;S.aff[i]=0;}
   }
 }
 
@@ -470,29 +473,44 @@ function bfsFrom(g,X,Y,start,cap,q0){
   return qt;
 }
 
-// Particles join and leave a form, so it is re-identified: of all the forms its old members now
-// belong to, keep the one holding most of them. Too few left means it has dissolved.
+// Particles join and leave a form, so it is re-identified four times a second: of all the clusters
+// its members now belong to, keep the one with the strongest bond to the form. Every particle keeps
+// its own bond (S.aff): 1 for the form you picked, W_NEW for a newcomer, growing to 1 over ~8 s
+// of staying, and fading (half-life ~6 s) while apart, so a particle that drifts off for a moment
+// is still the form's own when it returns. When the form brushes past another one and they part
+// again, it stays itself instead of going along with the bigger of the two; a lasting merger
+// slowly becomes the form. W_NEW is small on purpose: a mass of hundreds that brushes past must
+// not outweigh the form's own few dozen.
+const W_NEW=0.01,W_GROW=0.03,W_FADE=0.97,CORE=0.5;
 const folTmp=new Int32Array(CAP);
+function bond(hit){
+  S.aff.fill(0);for(let q=0;q<hit.n;q++)S.aff[hit.list[q]]=1;
+  S.fol.set(hit.list);S.folW.fill(1,0,hit.n);S.folN=hit.n;
+}
 function refollow(){
-  const old=S.fol,on=S.folN;
-  for(let q=0;q<on;q++)mark[old[q]]=1;
-  gen++;let qt=0,bA=0,bB=0,bOv=0,bT=false;
+  const old=S.fol,on=S.folN,A=S.aff;let wt=0;
+  for(let q=0;q<on;q++)wt+=A[old[q]];
+  gen++;let qt=0,bA=0,bB=0,bSc=0,bT=false;
   for(let q=0;q<on;q++){
     const s=old[q];if(stamp[s]===gen)continue;
     bfsTrunc=false;const a=qt;qt=bfsFrom(gPhys,S.x,S.y,s,2*CAP,a);
-    let ov=0;for(let r=a;r<qt;r++)ov+=mark[queue[r]];
-    if(ov>bOv){bOv=ov;bA=a;bB=qt;bT=bfsTrunc;}
+    let sc=0;for(let r=a;r<qt;r++)sc+=A[queue[r]];
+    if(sc>bSc){bSc=sc;bA=a;bB=qt;bT=bfsTrunc;}
   }
-  if(bOv<Math.max(3,on*0.3)||bB-bA<MINBODY){for(let q=0;q<on;q++)mark[old[q]]=0;S.folN=0;lost=true;return;}
-  if(bT||bB-bA>CAP){
-    // Swallowed by a larger mass: follow the form's own particles inside it. Taking a fresh chunk of
-    // the mass each time would make the target, and with it the camera, jump about.
-    let k=0;for(let r=bA;r<bB;r++){const i=queue[r];if(mark[i])folTmp[k++]=i;}
-    for(let q=0;q<on;q++)mark[old[q]]=0;
-    if(k<MINBODY){S.folN=0;lost=true;return;}
-    S.fol.set(folTmp.subarray(0,k));S.folN=k;
-  }else{for(let q=0;q<on;q++)mark[old[q]]=0;S.fol.set(queue.subarray(bA,bB));S.folN=bB-bA;}
+  let k=0;gen++;
+  if(bSc>=0.3*wt&&bB-bA>=MINBODY){
+    // swallowed by a mass larger than a form can be: only particles bonded to the form stay in it
+    const big=bT||bB-bA>CAP;
+    for(let r=bA;r<bB&&k<CAP;r++){const i=queue[r];if(big&&!(A[i]>0))continue;folTmp[k++]=i;stamp[i]=gen;}
+  }
+  if(k<MINBODY){S.folN=0;lost=true;return;}
+  for(let i=0,n=S.n;i<n;i++){   // the bond grows inside the form and fades outside it
+    if(stamp[i]===gen)A[i]=A[i]>0?Math.min(1,A[i]+W_GROW):W_NEW;
+    else if(A[i]>0){A[i]*=W_FADE;if(A[i]<0.02)A[i]=0;}
+  }
+  S.fol.set(folTmp.subarray(0,k));for(let q=0;q<k;q++)S.folW[q]=A[folTmp[q]];S.folN=k;
 }
+function coreSize(w,cnt){let c=0;for(let q=0;q<cnt;q++)if(w[q]>=CORE)c++;return c;}
 
 function pickAt(sx,sy){
   const d=displayState(),n=S.n,Lx=S.Lx,Ly=S.Ly;
@@ -530,10 +548,10 @@ function pushSnap(){
   if(hCount<HIST){slot=(hStart+hCount)%HIST;hCount++;}else{slot=hStart;hStart=(hStart+1)%HIST;}
   const n=S.n;let s=hist[slot];
   if(!s||s.n!==n){const f=new Float32Array(4*n);
-    s=hist[slot]={n,f,X:f.subarray(0,n),Y:f.subarray(n,2*n),t:new Uint8Array(n),fol:new Int32Array(CAP),
+    s=hist[slot]={n,f,X:f.subarray(0,n),Y:f.subarray(n,2*n),t:new Uint8Array(n),a:new Float32Array(n),fol:new Int32Array(CAP),folW:new Float32Array(CAP),
       m:new Float32Array(64)};}
-  s.f.set(S.x,0);s.f.set(S.y,n);s.f.set(S.vx,2*n);s.f.set(S.vy,3*n);s.t.set(S.typ);
-  s.fol.set(S.fol.subarray(0,S.folN));s.folN=S.folN;
+  s.f.set(S.x,0);s.f.set(S.y,n);s.f.set(S.vx,2*n);s.f.set(S.vy,3*n);s.t.set(S.typ);s.a.set(S.aff);
+  s.fol.set(S.fol.subarray(0,S.folN));s.folW.set(S.folW.subarray(0,S.folN));s.folN=S.folN;
   s.rng=S.rng;s.camX=S.camX;s.camY=S.camY;s.step=S.step;
   s.tX=S.tX;s.tY=S.tY;s.cvx=S.cvx;s.cvy=S.cvy;s.fvx=S.fvx;s.fvy=S.fvy;
   s.m.set(mat);s.rN=P.rN;s.force=P.force;s.fhl=P.fhl;s.beta=P.beta;s.dt=P.dt;
@@ -542,7 +560,7 @@ function pushSnap(){
 function restore(i){
   const s=snapAt(i),n=S.n,f=s.f;
   S.x.set(f.subarray(0,n));S.y.set(f.subarray(n,2*n));S.vx.set(f.subarray(2*n,3*n));S.vy.set(f.subarray(3*n));
-  S.typ.set(s.t);S.fol.set(s.fol.subarray(0,s.folN));S.folN=s.folN;
+  S.typ.set(s.t);S.aff.set(s.a);S.fol.set(s.fol.subarray(0,s.folN));S.folW.set(s.folW.subarray(0,s.folN));S.folN=s.folN;
   S.rng=s.rng;S.camX=s.camX;S.camY=s.camY;S.step=s.step;
   S.tX=s.tX;S.tY=s.tY;S.cvx=s.cvx;S.cvy=s.cvy;S.fvx=s.fvx;S.fvy=s.fvy;
   prevOK=false;
@@ -587,7 +605,7 @@ function interp(v){
     R.X=ix;R.Y=iy;R.T=a<.5?s0.t:s1.t;
     R.cx=s0.camX+wr(s1.camX-s0.camX,Lx)*a;R.cy=s0.camY+wr(s1.camY-s0.camY,Ly)*a;
   }
-  const sf=a<.5?s0:s1;R.fol=sf.fol;R.folN=sf.folN;return R;
+  const sf=a<.5?s0:s1;R.fol=sf.fol;R.folW=sf.folW;R.folN=sf.folN;return R;
 }
 // what is on screen: the live world, or the past
 const D={X:null,Y:null,T:null,cx:0,cy:0,fol:null,folN:0};
@@ -600,10 +618,10 @@ function displayState(){
       D.X=lx;D.Y=ly;
     }else{D.X=S.x;D.Y=S.y;}
     D.cx=VW.x;D.cy=VW.y;
-    D.T=S.typ;D.fol=S.fol;D.folN=S.folN;return D;
+    D.T=S.typ;D.fol=S.fol;D.folW=S.folW;D.folN=S.folN;return D;
   }
   interp(view);
-  D.X=R.X;D.Y=R.Y;D.T=R.T;D.cx=VW.x;D.cy=VW.y;D.fol=R.fol;D.folN=R.folN;return D;
+  D.X=R.X;D.Y=R.Y;D.T=R.T;D.cx=VW.x;D.cy=VW.y;D.fol=R.fol;D.folW=R.folW;D.folN=R.folN;return D;
 }
 
 // ---- what you see ----
@@ -624,13 +642,13 @@ function camTarget(){
 }
 function updateView(ft){
   const t=camTarget(),Lx=S.Lx,Ly=S.Ly,hw=W/2/zoom,hh=H/2/zoom;
-  let list=S.fol,cnt=tow.on?0:S.folN,X=S.x,Y=S.y,gx=0,gy=0;
+  let list=S.fol,w=S.folW,cnt=tow.on?0:S.folN,X=S.x,Y=S.y,gx=0,gy=0;
   if(mode==="review"){
     const s=snapAt(Math.max(0,Math.min(hCount-1,Math.round(view))));
-    list=s.fol;cnt=viewOX||viewOY?0:s.folN;X=s.X;Y=s.Y;   // looking around in the past: no leaning
+    list=s.fol;w=s.folW;cnt=viewOX||viewOY?0:s.folN;X=s.X;Y=s.Y;   // looking around in the past: no leaning
   }
   if(cnt){
-    body(list,cnt,X,Y);
+    body(list,cnt,X,Y,w);
     const fx=wd(B.x-t.x,Lx),fy=wd(B.y-t.y,Ly),ax=0.7*hw,ay=0.7*hh;
     const sx=Math.max(0,Lx/2-hw-RM),sy=Math.max(0,Ly/2-hh-RM);
     gx=Math.max(-sx,Math.min(sx,fx>ax?fx-ax:fx<-ax?fx+ax:0));
@@ -670,7 +688,7 @@ function dots(X,Y,T,cx,cy){
 // The past is drawn from scratch, its trails rebuilt from the moments just before it. Redrawing an
 // unchanged frame over its own trail would add the same light again and again and bleach it white.
 function renderReview(){
-  const d=displayState(),cx=d.cx,cy=d.cy,fol=d.fol,folN=d.folN;
+  const d=displayState(),cx=d.cx,cy=d.cy,fol=d.fol,folW=d.folW,folN=d.folN;
   const key=view+","+cx+","+cy+","+zoom+","+pal+","+P.fade+","+W+","+H;
   if(key!==reviewKey){
     reviewKey=key;fillBG();
@@ -681,7 +699,7 @@ function renderReview(){
     ctx.globalAlpha=1;tc.x=cx;tc.y=cy;tc.z=zoom;trailOK=true;
   }
   const r=interp(view);   // the overlay needs the moment itself
-  D.X=r.X;D.Y=r.Y;D.T=r.T;D.cx=cx;D.cy=cy;D.fol=fol;D.folN=folN;
+  D.X=r.X;D.Y=r.Y;D.T=r.T;D.cx=cx;D.cy=cy;D.fol=fol;D.folW=folW;D.folN=folN;
   drawOverlay(D);
 }
 function render(){
@@ -708,13 +726,15 @@ function render(){
   drawOverlay(d);
 }
 
-// corner brackets around a form, on their own layer so they leave no trails
+// corner brackets around a form, on their own layer so they leave no trails; with weights, around
+// its core only, so a passer-by that brushes against it is not taken in
 const BX={x:0,y:0};
-function brackets(list,cnt,d,col,lw){
-  const Lx=S.Lx,Ly=S.Ly,z=zoom;body(list,cnt,d.X,d.Y);
-  const bx=W/2+wr(B.x-d.cx,Lx)*z,by=H/2+wr(B.y-d.cy,Ly)*z;
+function brackets(list,cnt,d,col,lw,w){
+  const Lx=S.Lx,Ly=S.Ly,z=zoom;body(list,cnt,d.X,d.Y,w);
+  const bx=W/2+wr(B.x-d.cx,Lx)*z,by=H/2+wr(B.y-d.cy,Ly)*z,core=w&&coreSize(w,cnt)>=3;
   let x0=bx,x1=bx,y0=by,y1=by;
-  for(let q=0;q<cnt;q++){const i=list[q],sx=bx+wd(d.X[i]-B.x,Lx)*z,sy=by+wd(d.Y[i]-B.y,Ly)*z;
+  for(let q=0;q<cnt;q++){if(core&&w[q]<CORE)continue;
+    const i=list[q],sx=bx+wd(d.X[i]-B.x,Lx)*z,sy=by+wd(d.Y[i]-B.y,Ly)*z;
     if(sx<x0)x0=sx;else if(sx>x1)x1=sx;if(sy<y0)y0=sy;else if(sy>y1)y1=sy;}
   x0-=9;y0-=9;x1+=9;y1+=9;const L=Math.min(13,(x1-x0)/3,(y1-y0)/3);
   octx.strokeStyle=col;octx.lineWidth=lw;octx.beginPath();
@@ -730,7 +750,7 @@ function pushTrail(x,y){const t=trail;if(t.length){const p=t[t.length-1];
 function drawOverlay(d){
   octx.clearRect(0,0,W,H);
   if(hover&&!tow.on)brackets(hover.list,hover.n,d,"rgba(57,224,200,.45)",1);
-  if(d.folN)brackets(d.fol,d.folN,d,tow.on?"rgba(255,210,74,.95)":"rgba(57,224,200,.85)",1.5);
+  if(d.folN)brackets(d.fol,d.folN,d,tow.on?"rgba(255,210,74,.95)":"rgba(57,224,200,.85)",1.5,d.folW);
   if(tow.on){octx.strokeStyle="rgba(255,210,74,.55)";octx.lineWidth=1;octx.setLineDash([3,4]);
     octx.beginPath();octx.moveTo(tow.sx,tow.sy);octx.lineTo(BX.x,BX.y);octx.stroke();octx.setLineDash([]);}
   if(trail.length){
@@ -895,7 +915,7 @@ function setZoom(nz,sx,sy){   // keeps the world point under (sx,sy) in place
 }
 // touching a form, also in the past, sets time flowing again from that moment
 function follow(hit){
-  live();S.fol.set(hit.list);S.folN=hit.n;
+  live();bond(hit);
   msg("Following a form of "+hit.n+" particles.");
 }
 function unfollow(){if(mode==="live"&&S.folN){S.folN=0;msg("Let go.");}}
@@ -908,7 +928,7 @@ function startTow(hit,sx,sy){
   body(tow.list,tow.n,S.x,S.y);
   tow.ox=wd(B.x-(VW.x+(sx-W/2)/zoom),S.Lx);tow.oy=wd(B.y-(VW.y+(sy-H/2)/zoom),S.Ly);
   tow.sx=sx;tow.sy=sy;tow.on=true;
-  S.fol.set(hit.list);S.folN=hit.n;   // once released, the camera follows it
+  bond(hit);   // once released, the camera follows it
 }
 function beginStir(sx,sy){live();stir.on=true;stir.sx=sx;stir.sy=sy;pushTrail(sx,sy);}
 function edgeScroll(){   // towing to the edge of the screen carries the view along
@@ -1099,7 +1119,7 @@ function updTimeline(){
 }
 function updHud(t){
   if(t-hudT<250)return;hudT=t;
-  const f=mode==="live"?S.folN:displayState().folN;
+  const g=mode==="live"?S:displayState(),f=g.folN?Math.max(1,coreSize(g.folW,g.folN)):0;   // the form's core
   $("hud").innerHTML=(fps|0)+" fps · "+S.n+" particles · "+P.k+" species<br>"+
     (f?"following · "+f:"free camera")+(mode==="review"?" · past":"");
   const fb=$("bFol"),on=mode==="live"&&S.folN>0;

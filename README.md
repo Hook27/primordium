@@ -56,8 +56,10 @@ back on the opposite side, out of sight, as fresh primordial soup. The particle 
 there is always new soup ahead.
 
 - **Follow** — click a form and the camera keeps it in view. The form is re-identified four times a
-  second (of all the clusters its old members now belong to, the one holding most of them); swallowed
-  by a larger mass, it is tracked by its own particles inside it.
+  second as the cluster with the strongest bond to it. Every particle carries a bond: 1 for the form
+  you picked, 0.01 for a newcomer that grows to 1 over about 8 s of staying, fading slowly while apart.
+  So a form that brushes past a bigger one and parts again stays itself, and only a lasting merger
+  slowly becomes the form; swallowed by a larger mass, it is tracked by its own particles inside it.
 - **Tow** — drag a form and every particle in it gets the same velocity change, so its shape and its own
   motion stay intact. In Push / Pull mode, dragging stirs the swarm as in Primordium.
 - **Rewind** — the last 60 seconds are kept as exact snapshots (positions, velocities, species, the
