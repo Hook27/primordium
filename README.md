@@ -79,6 +79,12 @@ there is always new soup ahead.
   the world's own generator, and *Meeting* rolls another. The soup is the locals', so the guests are never
   renewed: the form survives only by holding together or taking in locals. Travel on and every species it
   then holds goes along (up to 8 guest species next to up to 8 local ones).
+- **Its own laws of nature** — with *New laws on a voyage* on, the new world also gets another radius,
+  force, glide, core and speed (each from the habitable middle of its slider). The form keeps the laws
+  it left with, switch on or off, and from then on the sliders change the world only. The laws go per
+  species, and every particle feels all others by the laws of its own: a guest with a wide radius reacts
+  to locals that do not notice it yet, and a guest from a slower world lives in slow motion among them.
+  No real physics allows that. On its own the form stays exactly what it was.
 - **Feed** — drop a portion around the followed form, or strew food with the mouse in Feed mode, of one
   species or a mix. Food is never created: particles far out of sight are fetched and set down at rest,
   so the count stays fixed. The life story records each meal and, five seconds on, how much of it the
@@ -122,7 +128,9 @@ Every world except Vivarium carries the same kit:
   symmetry computed by raising each particle's unit vector to the *n*-th power through an
   angle-addition recurrence — no `atan2`, `sin` or `cos` in the hot loop.
 - **Navis** — Primordium's step on a camera-centred torus with renewal at the seam, one matrix of up
-  to 16×16 for locals and guests (every species carrying its own hue, so colours survive a voyage), a ring of 600
+  to 16×16 for locals and guests (every species carrying its own hue and its own laws of nature; the
+  grid cells are as wide as the widest radius, and where paces differ the camera and towing work with
+  displacement per step instead of velocity), a ring of 600
   snapshots for exact rewind (interpolated for smooth scrubbing), fixed 60 steps/s drawn in between
   steps for even motion, and BFS over the spatial hash to find and re-identify forms.
 - **Sturnus** — boids with **topological** neighbours (the *k* nearest, not a fixed radius) on a spatial hash; that is why the flock stays whole and scale-free.

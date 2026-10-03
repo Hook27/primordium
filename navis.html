@@ -104,6 +104,7 @@
   .lh #lifeAge{color:#fff;font-variant-numeric:tabular-nums}
   .lh button{margin-left:auto;padding:1px 7px;font-size:11px;line-height:1.4}
   .lh #lifeX{margin-left:0}
+  #gLaws{margin:7px 0 0}#gLaws .chip{display:inline-block;width:8px;height:8px;margin-right:2px;border-radius:2px}
   #lifeStat{color:#c4d6d1;margin:3px 0 5px;font-variant-numeric:tabular-nums}
   #lifeC{display:block;width:100%;height:58px;border-radius:5px;background:rgba(5,6,10,.55)}
   #lifeEv{list-style:none;margin-top:6px;max-height:7.6em;overflow:auto;line-height:1.55;color:#c9dbd6}
@@ -166,10 +167,12 @@
     <button id="bFol" title="Follow the largest form near the centre of the view, or let go of the one you follow (key F).">&#9678; Follow</button>
     <button id="bZoom" title="Back to the default zoom (key 0).">&#8982; Zoom 1:1</button>
     <button id="bFeed" title="Drop a portion of 20 particles in a ring around the form you follow (key G). In Feed mode you can also strew food with the mouse.">&#127793; Feed</button>
+    <button id="bGhost" class="on" aria-pressed="true" title="What-if ghosts: touch the past and the future you had seen plays on for a while as fading rings, wherever it differs (key W).">&#128123; Ghosts</button>
     <button id="bTravel" title="Take the form you follow to a new world: fresh rules and fresh soup, while it keeps its own rules (key T).">&#9992; Travel</button>
     <button id="bMeet" title="Roll other rules for how the guests and the locals treat each other.">&#8635; Meeting</button>
-    <button id="bGhost" class="on" aria-pressed="true" title="What-if ghosts: touch the past and the future you had seen plays on for a while as fading rings, wherever it differs (key W).">&#128123; Ghosts</button>
+    <button id="bLaws" class="on" style="grid-column:1/3" aria-pressed="true" title="On: a voyage leads to a world with other laws of nature (radius, force, glide, core, speed). Either way the form keeps the laws it left with, and the sliders then change the world only.">&#9878; New laws on a voyage</button>
   </div>
+  <div id="gLaws" class="sub" hidden></div>
   <div class="food" id="food" role="radiogroup" aria-label="Food: which species to feed"></div>
   <div class="lbl kl">keys &middot; f follow &middot; g feed &middot; w ghosts &middot; j life &middot; o portrait &middot; t travel &middot; , . time &middot; arrows look &middot; shift+arrows tow &middot; + &minus; 0 zoom</div>
   <div class="lbl">interaction matrix &middot; drag cells &updownarrow;</div>
@@ -242,6 +245,13 @@
   to the locals, so the guests are never renewed: the form lives on only by holding together or by
   taking in locals (or by being fed its own kind). Travel again and every species it then holds goes along.
   Rewind and you are back in the old world, exactly.</p>
+  <p>With <b>New laws on a voyage</b> switched on, the new world also has other <b>laws of nature</b>:
+  another radius, force, glide, core and speed. The form keeps the laws it left with &mdash; the line
+  under the voyage buttons shows them &mdash; whether the switch is on or off, and from then on the
+  sliders change the world only. Every particle feels the others by the laws of its own species: a guest
+  with a wide radius notices locals that do not notice it yet, and a guest from a slower world lives in
+  slow motion among them. No real physics allows that, which is the point. On its own the form stays
+  exactly what it was; a form that takes in locals holds particles living by different laws.</p>
   <h3>Time</h3>
   <p>The last 60 seconds are kept, rules and all: rewind past a Mutate or a slider change and the grid and
   sliders go back with it. Press play and history continues from that moment. Leave it alone and exactly the
@@ -293,13 +303,13 @@ const SPS=60,SNAP=6,HIST=600;        // 60 steps/s, a snapshot every 0.1 s, 60 s
 const TAU=Math.PI*2,BG="#05060a";
 const wd=(d,L)=>d>L*.5?d-L:d<-L*.5?d+L:d;   // minimum image, for distances inside the box
 const wr=(d,L)=>d-L*Math.round(d/L);        // the same for any distance
-let RM=R0,LINK2=(0.5*R0)**2;                // interaction radius now, and the link distance of a form
+let RM=R0,RMX=R0;                           // the world's interaction radius, and the largest of all species
 
 // ---- world state: everything a snapshot must hold to replay exactly ----
 const S={n:0,Lx:1,Ly:1,x:null,y:null,vx:null,vy:null,typ:null,aff:null,rng:1,camX:0,camY:0,
   fol:new Int32Array(CAP),folW:new Float32Array(CAP),folN:0,step:0,evo:false,seed:0,custom:false,rv:0,
   tX:0,tY:0,cvx:0,cvy:0,fvx:0,fvy:0,   // camera: tight tracker, own velocity, tracker velocity smoothed
-  gk:0,hue:[]};                        // guest species, and every species' hue position (never changed in place)
+  gk:0,hue:[],gl:[]};                  // guest species, every species' hue position, the guests' laws (never changed in place)
 // The camera glides after a followed form (tuned on recorded flights of the fastest forms): a calm
 // zone in the middle, the form's velocity averaged over 0.4 s, speed changes eased, ever firmer as the
 // form nears CLIM, which it may never pass. All per step (60/s), all part of the timeline.
@@ -314,6 +324,28 @@ const VW={x:0,y:0,ox:0,oy:0};
 const MAXK=16,mat=new Float32Array(MAXK*MAXK);
 const nk=()=>P.k+S.gk;
 const homeHue=k=>Array.from({length:k},(_,i)=>i/k);
+// The laws of nature (radius, force, glide, core, speed) go per species: the world's own species follow
+// the sliders (P), every guest species keeps the laws of the world it came from (S.gl, one frozen set
+// per guest species). A particle feels all others by the laws of its own species.
+const NOGL=Object.freeze([]);
+const LR=new Float64Array(MAXK),LR2=new Float64Array(MAXK),LB=new Float64Array(MAXK),LIB=new Float64Array(MAXK),
+  LF=new Float64Array(MAXK),LD=new Float64Array(MAXK),LFF=new Float64Array(MAXK),LL2=new Float64Array(MAXK);
+let mixedDt=false;   // some species live at another pace than the world
+function laws(){
+  const k=P.k,K=nk();let mx=0,mix=false;
+  for(let t=0;t<K;t++){
+    const g=t<k?P:S.gl[t-k],r=t<k?RM:R0*g.rN/0.105;
+    LR[t]=r;LR2[t]=r*r;LB[t]=g.beta;LIB[t]=1/(1-g.beta);LF[t]=r*g.force;LD[t]=g.dt;LFF[t]=Math.pow(0.5,g.dt/g.fhl);
+    LL2[t]=(0.5*r)**2;   // the link distance of a form: half an interaction radius
+    if(r>mx)mx=r;if(g.dt!==P.dt)mix=true;
+  }
+  RMX=mx;mixedDt=mix;
+}
+// the link distances of a moment in the past (never beyond what the grid of now can find)
+const RL2=new Float64Array(MAXK);
+function linkOf(s){const k=P.k,m=Math.min(cw,ch)**2;
+  for(let t=0,K=k+s.gk;t<K;t++){const r=R0*(t<k?s.rN:s.gl[t-k].rN)/0.105;RL2[t]=Math.min(m,(0.5*r)**2);}
+  return RL2;}
 let RVC=0;function rulesChanged(){S.rv=++RVC;}   // every rule state gets its own id, for the panel
 let zoom=1,zMin=0.5,zMax=4;
 let cols=3,rows=3,cw=1,ch=1;
@@ -355,10 +387,10 @@ function zoomBounds(){
   zoom=Math.min(zMax,Math.max(zMin,zoom));
 }
 function gridDims(){
-  cols=Math.max(3,Math.floor(S.Lx/RM));rows=Math.max(3,Math.floor(S.Ly/RM));cw=S.Lx/cols;ch=S.Ly/rows;
+  cols=Math.max(3,Math.floor(S.Lx/RMX));rows=Math.max(3,Math.floor(S.Ly/RMX));cw=S.Lx/cols;ch=S.Ly/rows;   // cells as wide as the widest reach
   for(const g of [gPhys,gPick])if(!g.head||g.head.length<cols*rows)g.head=new Int32Array(cols*rows);
 }
-function setRM(){RM=R0*P.rN/0.105;LINK2=(0.5*RM)**2;if(S.n){gridDims();zoomBounds();}}
+function setRM(){RM=R0*P.rN/0.105;laws();if(S.n){gridDims();zoomBounds();}}
 function cellOf(v,L,c,w){const m=v-L*Math.floor(v/L);const i=(m/w)|0;return i>=c?c-1:i<0?0:i;}
 function fillGrid(g,X,Y,n){
   const h=g.head,nx=g.nxt,ce=g.cel,Lx=S.Lx,Ly=S.Ly;h.fill(-1);
@@ -387,7 +419,7 @@ function resetWorld(){
 function dropGuests(){
   const k=P.k,K=nk(),m=mat.slice(0,K*K);
   for(let i=0;i<k;i++)for(let j=0;j<k;j++)mat[i*k+j]=m[i*K+j];
-  S.gk=0;S.hue=S.hue.slice(0,k);buildColors();rulesChanged();buildMx();buildFood();
+  S.gk=0;S.gl=NOGL;S.hue=S.hue.slice(0,k);setRM();buildColors();rulesChanged();buildMx();buildFood();
 }
 function spawnPositions(){
   if(S.gk)dropGuests();   // fresh soup is the world's own: guests would have nobody left
@@ -421,12 +453,13 @@ function preset(p){
 
 // ---- simulation: Primordium's step on a torus centred on the camera ----
 function forces(){
-  const n=S.n,x=S.x,y=S.y,vx=S.vx,vy=S.vy,typ=S.typ,Lx=S.Lx,Ly=S.Ly,hx=Lx*.5,hy=Ly*.5;
-  const k=nk(),beta=P.beta,ib=1/(1-beta),rM=RM,r2=rM*rM,fpf=rM*P.force,dt=P.dt,ff=Math.pow(0.5,dt/P.fhl);
-  fillGrid(gPhys,x,y,n);
+  const n=S.n,x=S.x,y=S.y,vx=S.vx,vy=S.vy,typ=S.typ,Lx=S.Lx,Ly=S.Ly,hx=Lx*.5,hy=Ly*.5,k=nk();
+  laws();fillGrid(gPhys,x,y,n);
   const head=gPhys.head,nxt=gPhys.nxt,cel=gPhys.cel;
   for(let i=0;i<n;i++){
-    let fx=0,fy=0;const xi=x[i],yi=y[i],ti=typ[i]*k,c=cel[i],cx=c%cols,cy=(c-cx)/cols;
+    // by the laws of its own species: how far it feels, how hard, how close, how long it glides, how fast it lives
+    const sp=typ[i],rM=LR[sp],r2=LR2[sp],beta=LB[sp],ib=LIB[sp],fpf=LF[sp],dt=LD[sp],ff=LFF[sp];
+    let fx=0,fy=0;const xi=x[i],yi=y[i],ti=sp*k,c=cel[i],cx=c%cols,cy=(c-cx)/cols;
     for(let oy=-1;oy<=1;oy++){
       const row=((cy+oy+rows)%rows)*cols;
       for(let ox=-1;ox<=1;ox++){
@@ -476,6 +509,16 @@ function push(list,cnt,ux,uy,gain){
   meanV(list,cnt);const ax=(ux-MV.x)*gain,ay=(uy-MV.y)*gain;
   for(let q=0;q<cnt;q++){const i=list[q];S.vx[i]+=ax;S.vy[i]+=ay;}
 }
+// When species live at different paces, the same velocity is not the same movement. Then the mean is
+// taken of the displacement per step, and a push gives every member the same change in displacement.
+const MD={x:0,y:0};
+function meanD(list,cnt,w){let a=0,b=0,sw=0;
+  for(let q=0;q<cnt;q++){const i=list[q],k=w?w[q]:1,d=LD[S.typ[i]];a+=S.vx[i]*d*k;b+=S.vy[i]*d*k;sw+=k;}
+  MD.x=a/sw;MD.y=b/sw;}
+function pushD(list,cnt,ux,uy,gain){
+  meanD(list,cnt);const ax=(ux-MD.x)*gain,ay=(uy-MD.y)*gain;
+  for(let q=0;q<cnt;q++){const i=list[q],d=LD[S.typ[i]];S.vx[i]+=ax/d;S.vy[i]+=ay/d;}
+}
 
 function camera(dt){
   const Lx=S.Lx,Ly=S.Ly;
@@ -485,9 +528,11 @@ function camera(dt){
     return;
   }
   // a tight tracker irons out the jumps of a changing membership...
-  body(S.fol,S.folN,S.x,S.y,S.folW);meanV(S.fol,S.folN,S.folW);
+  body(S.fol,S.folN,S.x,S.y,S.folW);let mdx,mdy;
+  if(mixedDt){meanD(S.fol,S.folN,S.folW);mdx=MD.x;mdy=MD.y;}
+  else{meanV(S.fol,S.folN,S.folW);mdx=MV.x*dt;mdy=MV.y*dt;}
   const ptx=S.tX,pty=S.tY;
-  S.tX+=MV.x*dt+wd(B.x-S.tX,Lx)*0.05;S.tY+=MV.y*dt+wd(B.y-S.tY,Ly)*0.05;
+  S.tX+=mdx+wd(B.x-S.tX,Lx)*0.05;S.tY+=mdy+wd(B.y-S.tY,Ly)*0.05;
   // ...and the camera glides after that tracker
   S.fvx+=(wd(S.tX-ptx,Lx)/CH-S.fvx)*CF;S.fvy+=(wd(S.tY-pty,Ly)/CH-S.fvy)*CF;
   const ex=wd(S.tX-S.camX,Lx),ey=wd(S.tY-S.camY,Ly),d=Math.hypot(ex,ey);
@@ -508,15 +553,21 @@ function tick(){
   if(tow.on){
     body(tow.list,tow.n,S.x,S.y);
     const tx=VW.x+(tow.sx-W/2)/zoom+tow.ox,ty=VW.y+(tow.sy-H/2)/zoom+tow.oy;   // the pointer, in what you see
-    let ux=wd(tx-B.x,S.Lx)/(8*dt),uy=wd(ty-B.y,S.Ly)/(8*dt);
-    const sp=Math.hypot(ux,uy),vm=6/dt;if(sp>vm){ux*=vm/sp;uy*=vm/sp;}
-    push(tow.list,tow.n,ux,uy,0.6);
+    if(mixedDt){   // paces differ: steer the displacement per step
+      let ux=wd(tx-B.x,S.Lx)/8,uy=wd(ty-B.y,S.Ly)/8;const sp=Math.hypot(ux,uy);if(sp>6){ux*=6/sp;uy*=6/sp;}
+      pushD(tow.list,tow.n,ux,uy,0.6);
+    }else{
+      let ux=wd(tx-B.x,S.Lx)/(8*dt),uy=wd(ty-B.y,S.Ly)/(8*dt);
+      const sp=Math.hypot(ux,uy),vm=6/dt;if(sp>vm){ux*=vm/sp;uy*=vm/sp;}
+      push(tow.list,tow.n,ux,uy,0.6);
+    }
   }else if((keyTow.x||keyTow.y)&&S.folN){
     const l=Math.hypot(keyTow.x,keyTow.y),v=3/dt;
-    push(S.fol,S.folN,keyTow.x/l*v,keyTow.y/l*v,0.3);
+    if(mixedDt)pushD(S.fol,S.folN,keyTow.x/l*3,keyTow.y/l*3,0.3);
+    else push(S.fol,S.folN,keyTow.x/l*v,keyTow.y/l*v,0.3);
   }
-  const n=S.n,x=S.x,y=S.y,vx=S.vx,vy=S.vy;
-  for(let i=0;i<n;i++){x[i]+=vx[i]*dt;y[i]+=vy[i]*dt;}
+  const n=S.n,x=S.x,y=S.y,vx=S.vx,vy=S.vy,typ=S.typ;
+  for(let i=0;i<n;i++){const d=LD[typ[i]];x[i]+=vx[i]*d;y[i]+=vy[i]*d;}   // each at the pace of its species
   if(LIFE&&LIFE.end===null&&!S.folN)lifeEnd("let go");
   if(S.folN&&!tow.on&&S.step%15===0)refollow();
   camera(dt);
@@ -542,11 +593,11 @@ function renew(){
 }
 
 // ---- forms: connected particles (closer than half an interaction radius) ----
-function bfsFrom(g,X,Y,start,cap,q0){
+function bfsFrom(g,X,Y,T,L2,start,cap,q0){
   const Lx=S.Lx,Ly=S.Ly,hx=Lx*.5,hy=Ly*.5,head=g.head,nxt=g.nxt,cel=g.cel;
   let qh=q0,qt=q0;queue[qt++]=start;stamp[start]=gen;
   while(qh<qt){
-    const i=queue[qh++],c=cel[i],cx=c%cols,cy=(c-cx)/cols,xi=X[i],yi=Y[i];
+    const i=queue[qh++],c=cel[i],cx=c%cols,cy=(c-cx)/cols,xi=X[i],yi=Y[i],li=L2[T[i]];
     for(let oy=-1;oy<=1;oy++){
       const row=((cy+oy+rows)%rows)*cols;
       for(let ox=-1;ox<=1;ox++){
@@ -556,7 +607,8 @@ function bfsFrom(g,X,Y,start,cap,q0){
             let dx=X[j]-xi,dy=Y[j]-yi;
             if(dx>hx)dx-=Lx;else if(dx<-hx)dx+=Lx;
             if(dy>hy)dy-=Ly;else if(dy<-hy)dy+=Ly;
-            if(dx*dx+dy*dy<LINK2){stamp[j]=gen;if(qt-q0<cap)queue[qt++]=j;else bfsTrunc=true;}
+            const lj=L2[T[j]];   // linked when within half the reach of both
+            if(dx*dx+dy*dy<(li<lj?li:lj)){stamp[j]=gen;if(qt-q0<cap)queue[qt++]=j;else bfsTrunc=true;}
           }
           j=nxt[j];
         }
@@ -586,7 +638,7 @@ function refollow(){
   gen++;let qt=0,bA=0,bB=0,bSc=0,bT=false;
   for(let q=0;q<on;q++){
     const s=old[q];if(stamp[s]===gen)continue;
-    bfsTrunc=false;const a=qt;qt=bfsFrom(gPhys,S.x,S.y,s,2*CAP,a);
+    bfsTrunc=false;const a=qt;qt=bfsFrom(gPhys,S.x,S.y,S.typ,LL2,s,2*CAP,a);
     let sc=0;for(let r=a;r<qt;r++)sc+=A[queue[r]];
     if(sc>bSc){bSc=sc;bA=a;bB=qt;bT=bfsTrunc;}
   }
@@ -721,7 +773,7 @@ function pickAt(sx,sy){
       if(dd<bd){bd=dd;best=j;}j=nxt[j];}
   }
   if(best<0)return null;
-  gen++;bfsTrunc=false;const e=bfsFrom(gPick,d.X,d.Y,best,CAP,0);
+  gen++;bfsTrunc=false;const e=bfsFrom(gPick,d.X,d.Y,d.T,d.L2,best,CAP,0);
   return e<MINBODY?null:{list:queue.slice(0,e),n:e};
 }
 function largestNearCentre(){
@@ -730,7 +782,7 @@ function largestNearCentre(){
   for(let i=0;i<n;i++){
     if(stamp[i]===gen)continue;
     const dx=wr(d.X[i]-d.cx,Lx),dy=wr(d.Y[i]-d.cy,Ly);if(dx*dx+dy*dy>RR)continue;
-    bfsTrunc=false;const a=qt;qt=bfsFrom(gPick,d.X,d.Y,i,CAP,a);
+    bfsTrunc=false;const a=qt;qt=bfsFrom(gPick,d.X,d.Y,d.T,d.L2,i,CAP,a);
     if(qt-a>bs){bs=qt-a;bA=a;}
   }
   return bs<MINBODY?null:{list:queue.slice(bA,bA+bs),n:bs};
@@ -751,7 +803,7 @@ function pushSnap(){
   s.fol.set(S.fol.subarray(0,S.folN));s.folW.set(S.folW.subarray(0,S.folN));s.folN=S.folN;
   s.rng=S.rng;s.camX=S.camX;s.camY=S.camY;s.step=S.step;
   s.tX=S.tX;s.tY=S.tY;s.cvx=S.cvx;s.cvy=S.cvy;s.fvx=S.fvx;s.fvy=S.fvy;
-  s.m.set(mat);s.gk=S.gk;s.hue=S.hue;s.rN=P.rN;s.force=P.force;s.fhl=P.fhl;s.beta=P.beta;s.dt=P.dt;
+  s.m.set(mat);s.gk=S.gk;s.hue=S.hue;s.gl=S.gl;s.rN=P.rN;s.force=P.force;s.fhl=P.fhl;s.beta=P.beta;s.dt=P.dt;
   s.evo=S.evo;s.seed=S.seed;s.custom=S.custom;s.rv=S.rv;
   s.life=LIFE;if(LIFE){s.lifeS=LIFE.steps.length;s.lifeE=LIFE.events.length;s.lifeSh=LIFE.shapes.length;s.lifeLs=LIFE.last;s.lifeP=LIFE.pending;s.lifeSp=LIFE.splitP;s.lifeBp=LIFE.brushP;s.lifeMp=LIFE.mealP;s.lifeEnd=LIFE.end;s.lifeBig=LIFE.big;s.lifeBl=LIFE.bigLog;}
 }
@@ -762,10 +814,11 @@ function restore(i){
   S.rng=s.rng;S.camX=s.camX;S.camY=s.camY;S.step=s.step;
   S.tX=s.tX;S.tY=s.tY;S.cvx=s.cvx;S.cvy=s.cvy;S.fvx=s.fvx;S.fvy=s.fvy;
   prevOK=false;
-  mat.set(s.m);if(S.gk!==s.gk||S.hue!==s.hue){S.gk=s.gk;S.hue=s.hue;buildColors();buildMx();buildFood();}
+  mat.set(s.m);const lawCh=S.gl!==s.gl||P.rN!==s.rN;S.gl=s.gl;
+  if(S.gk!==s.gk||S.hue!==s.hue){S.gk=s.gk;S.hue=s.hue;buildColors();buildMx();buildFood();}
   P.force=s.force;P.fhl=s.fhl;P.beta=s.beta;P.dt=s.dt;
   S.evo=s.evo;S.seed=s.seed;S.custom=s.custom;S.rv=s.rv;
-  if(P.rN!==s.rN){P.rN=s.rN;setRM();}
+  if(lawCh){P.rN=s.rN;setRM();}
   LIFE=s.life;   // the story winds back to where it was
   if(LIFE){const L=LIFE,m=s.lifeS;L.steps.length=L.core.length=L.own.length=L.mem.length=L.hue.length=m;L.spc.length=m*L.k;
     L.events.length=s.lifeE;L.shapes.length=s.lifeSh;L.last=s.lifeLs;L.pending=s.lifeP;L.splitP=s.lifeSp;L.brushP=s.lifeBp;L.mealP=s.lifeMp;
@@ -824,10 +877,11 @@ function displayState(){
       D.X=lx;D.Y=ly;D.st=S.step-1+a;
     }else{D.X=S.x;D.Y=S.y;D.st=S.step;}
     D.cx=VW.x;D.cy=VW.y;
-    D.T=S.typ;D.fol=S.fol;D.folW=S.folW;D.folN=S.folN;return D;
+    D.T=S.typ;D.L2=LL2;D.fol=S.fol;D.folW=S.folW;D.folN=S.folN;return D;
   }
   interp(view);
-  D.X=R.X;D.Y=R.Y;D.T=R.T;D.st=R.st;D.cx=VW.x;D.cy=VW.y;D.fol=R.fol;D.folW=R.folW;D.folN=R.folN;return D;
+  D.X=R.X;D.Y=R.Y;D.T=R.T;D.st=R.st;D.cx=VW.x;D.cy=VW.y;D.fol=R.fol;D.folW=R.folW;D.folN=R.folN;
+  D.L2=linkOf(snapAt(Math.max(0,Math.min(hCount-1,Math.round(view)))));return D;
 }
 
 // ---- what you see ----
@@ -1173,15 +1227,15 @@ function applySlider(d,v){
 }
 function randSettings(){defs.forEach(d=>applySlider(d,Math.round((d.mn+Math.random()*(d.mx-d.mn))/d.st)*d.st));}
 function resetSettings(){defs.forEach(d=>applySlider(d,DEF[d.k]));}
-function onK(){S.gk=0;S.hue=homeHue(P.k);buildColors();genSeed(S.seed);resetWorld();buildMx();buildFood();}
+function onK(){S.gk=0;S.gl=NOGL;S.hue=homeHue(P.k);buildColors();genSeed(S.seed);resetWorld();buildMx();buildFood();}
 
 // ---- interaction matrix editor: drag a cell up/down, or arrows + plus/minus from the keyboard ----
 const mx=$("mx");let mxCur=0,mdrag=null;
 function cellColor(v){const a=(0.1+0.9*Math.abs(v)).toFixed(2);
   return v>=0?"rgba(60,232,170,"+a+")":"rgba(244,72,96,"+a+")";}
-let mxK=0,mxHue=null;
-function buildMx(k,hue){
-  k=k||nk();hue=hue||S.hue;mxK=k;mxHue=hue;const cs=colsOf(hue);if(mxCur>=k*k)mxCur=0;
+let mxK=0,mxHue=null,mxGl=null;
+function buildMx(k,hue,gl){
+  k=k||nk();hue=hue||S.hue;gl=gl||S.gl;mxK=k;mxHue=hue;mxGl=gl;buildGuestLaws(gl,hue);const cs=colsOf(hue);if(mxCur>=k*k)mxCur=0;
   // with guests, a narrow gap parts the blocks: the locals, the guest's own rules, the meeting
   const h=P.k,g=k-h,gap=g?" 4px repeat("+g+",1fr)":"";
   mx.style.gridTemplateColumns="repeat("+Math.min(h,k)+",1fr)"+gap;
@@ -1243,7 +1297,8 @@ let uiRv=-1;
 function syncUI(){
   const src=mode==="review"?snapAt(Math.max(0,Math.min(hCount-1,Math.round(view)))):null;
   const K=src?P.k+src.gk:nk(),hue=src?src.hue:S.hue;
-  if(K!==mxK||hue!==mxHue)buildMx(K,hue);   // the past may have had other (or no) guests
+  const gl=src?src.gl:S.gl;
+  if(K!==mxK||hue!==mxHue||gl!==mxGl)buildMx(K,hue,gl);   // the past may have had other (or no) guests
   const rv=src?src.rv:S.rv;if(rv===uiRv)return;uiRv=rv;
   const g=src||{m:mat,rN:P.rN,force:P.force,fhl:P.fhl,beta:P.beta,dt:P.dt,evo:S.evo,seed:S.seed,custom:S.custom};
   for(const key of ["rN","force","fhl","beta","dt"]){const r=rngs[key];r.inp.value=g[key];r.val.textContent=r.d.f(g[key]);}
@@ -1369,8 +1424,11 @@ function travel(){
   const gs=[...cnt.keys()].filter(t=>cnt[t]>0).sort((a,b)=>cnt[b]-cnt[a]||a-b).slice(0,MAXK-8).sort((a,b)=>a-b);
   const map=new Int16Array(oldK).fill(-1);gs.forEach((t,a)=>map[t]=k+a);
   const gk=gs.length,K=k+gk,guestHue=gs.map(t=>oldHue[t]);
+  const wl=Object.freeze({rN:P.rN,force:P.force,fhl:P.fhl,beta:P.beta,dt:P.dt}),ogl=S.gl;
   S.gk=gk;S.hue=hostHues(k,guestHue).concat(guestHue);
+  S.gl=gs.map(t=>t<k?wl:ogl[t-k]);   // the laws each species lived by: the old world's, or its own from before
   mat.fill(0);genSeed(rand32());   // the new world's own rules
+  if(lawsOn)rollLaws();             // and, with the switch on, its own laws of nature
   for(let a=0;a<gk;a++)for(let b=0;b<gk;b++)mat[(k+a)*K+k+b]=old[gs[a]*oldK+gs[b]];
   rollMeeting(rnd);
   // the form stays as it is; everything else becomes fresh soup, at rest, outside a clear zone
@@ -1383,10 +1441,34 @@ function travel(){
     let x,y,tr=0;
     do{x=S.camX+(rnd()-.5)*S.Lx;y=S.camY+(rnd()-.5)*S.Ly;}while(Math.hypot(wd(x-bx,S.Lx),wd(y-by,S.Ly))<R&&++tr<20);
     S.x[i]=x;S.y[i]=y;S.vx[i]=0;S.vy[i]=0;S.typ[i]=(rnd()*k)|0;S.aff[i]=0;}
-  prevOK=false;ghost=null;clearTrails();buildColors();buildMx();buildFood();
+  prevOK=false;ghost=null;clearTrails();setRM();buildColors();buildMx();buildFood();
   const w=S.seed.toString(36);
-  if(LIFE&&LIFE.end===null)lifeEv("voyage","travelled to world "+w+" · "+gk+" guest species among "+k);
-  msg("Arrived in world "+w+". The form keeps its own rules; how it meets the "+k+" local species is new.");
+  if(LIFE&&LIFE.end===null)lifeEv("voyage","travelled to world "+w+" · "+gk+" guest species among "+k+(lawsOn?" · other laws":""));
+  msg("Arrived in world "+w+(lawsOn?", under other laws of nature":"")+". The form keeps its own.");
+}
+// A voyage may lead to a world with other laws of nature: each one somewhere in the habitable middle
+// of its slider. The form keeps the laws it left with either way (S.gl); the sliders are the world's.
+let lawsOn=true;
+const LAWR={rN:[0.07,0.16],force:[5,22],fhl:[0.02,0.1],beta:[0.15,0.45],dt:[0.012,0.032]},LAWK=Object.keys(LAWR);
+function rollLaws(){for(const key of LAWK){const st=rngs[key].d.st,[a,b]=LAWR[key];
+  P[key]=+(Math.round((a+Math.random()*(b-a))/st)*st).toFixed(4);}}
+function toggleLaws(){
+  lawsOn=!lawsOn;const b=$("bLaws");b.classList.toggle("on",lawsOn);b.setAttribute("aria-pressed",lawsOn);
+  msg(lawsOn?"A voyage now leads to a world with other laws of nature.":"A voyage now keeps the laws of nature as they are.");
+}
+const lawText=g=>LAWK.map(key=>rngs[key].d.t+" "+rngs[key].d.f(g[key])).join(" · ");
+// under the voyage buttons: the laws the guests live by, one line per set, with the species it holds for
+function buildGuestLaws(gl,hue){
+  const box=$("gLaws");box.innerHTML="";box.hidden=!gl.length;if(!gl.length)return;
+  const cs=colsOf(hue),k=P.k,sets=[];
+  gl.forEach((g,a)=>{const tx=lawText(g);let q=sets.find(e=>e.tx===tx);if(!q)sets.push(q={tx,sp:[]});q.sp.push(a);});
+  for(const q of sets){
+    const row=document.createElement("div"),t=document.createElement("span");
+    for(const a of q.sp){const c=document.createElement("i");c.className="chip";c.setAttribute("aria-hidden","true");
+      c.style.background=cs[k+a];row.appendChild(c);}
+    t.textContent=(sets.length>1?" guest species "+q.sp.map(a=>a+1).join(", "):" guest laws")+" · "+q.tx;
+    row.appendChild(t);box.appendChild(row);
+  }
 }
 function newMeeting(){
   live();
@@ -1563,6 +1645,7 @@ $("bFeed").onclick=feedPortion;
 $("bGhost").onclick=toggleGhosts;
 $("bTravel").onclick=travel;
 $("bMeet").onclick=newMeeting;
+$("bLaws").onclick=toggleLaws;
 $("bPlay").onclick=togglePlay;
 $("bLive").onclick=goLive;
 $("bAbout").onclick=openAbout;$("aClose").onclick=closeAbout;
