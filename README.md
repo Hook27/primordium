@@ -2,7 +2,7 @@
 
 **A cabinet of emergence** — eight self-contained toys where a handful of tiny rules become something that looks alive.
 
-🌐 **Live:** [primordium.cryptofolio.nl](https://primordium.cryptofolio.nl/)
+🌐 **Live:** [primordium.nondumsc.io](https://primordium.nondumsc.io/)
 
 Each world is a single HTML file: no libraries, no build step, no network, no assets. Open one in any modern browser and it just runs. Together they are a small museum of the ways order makes itself — out of **forces**, out of **scent-trails**, and out of **alignment**.
 
